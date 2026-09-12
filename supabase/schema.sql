@@ -239,3 +239,70 @@ create policy "Users can view own activity logs"
 create policy "Users can insert own activity logs"
   on public.activity_logs for insert
   with check ((select auth.uid()) = user_id);
+
+-- ==============================================================================
+-- 9. AUTH TRIGGERS
+-- ==============================================================================
+
+-- Auto-confirm user emails upon creation so users can sign in immediately
+create or replace function public.auto_confirm_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.email_confirmed_at is null then
+    new.email_confirmed_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_auto_confirm on auth.users;
+create trigger on_auth_user_auto_confirm
+  before insert on auth.users
+  for each row execute function public.auto_confirm_new_user();
+
+-- Automatic character profile and starter pack initialization upon signup
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, email, display_name)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1))
+  );
+
+  insert into public.inventory (user_id, item_id, item_name, category)
+  values
+    (new.id, 'knit_sweater', 'Cozy Knit Sweater', 'hoodie'),
+    (new.id, 'lofi_day', 'Morning Sunlight Room', 'theme');
+
+  insert into public.quests (user_id, title, description, type, attribute, difficulty, xp_reward, coin_reward)
+  values
+    (new.id, 'Morning Hydration', 'Drink a warm glass of water or green tea', 'daily', 'vitality', 'easy', 15, 5),
+    (new.id, '25-Min Deep Focus Session', 'Complete your first Pomodoro study session', 'daily', 'focus', 'medium', 35, 12),
+    (new.id, 'Daily Reflection', 'Write down 3 things you are grateful for today', 'daily', 'mindfulness', 'easy', 15, 5),
+    (new.id, 'Tidy the Workspace', 'Organize your physical desk for maximum clarity', 'habit', 'discipline', 'easy', 20, 8);
+
+  insert into public.vouchers (user_id, title, cost, icon)
+  values
+    (new.id, '30-Minute Gaming Break', 40, 'gamepad-2'),
+    (new.id, 'Boba Milk Tea or Coffee Treat', 80, 'coffee'),
+    (new.id, 'Guilt-Free Movie Night', 150, 'film');
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+

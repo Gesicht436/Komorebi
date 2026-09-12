@@ -42,11 +42,12 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup') ||
-    request.nextUrl.pathname.startsWith('/forgot-password') ||
-    request.nextUrl.pathname.startsWith('/reset-password');
+    request.nextUrl.pathname.startsWith('/forgot-password');
+  const isResetPasswordRoute = request.nextUrl.pathname.startsWith('/reset-password');
+  const isAuthHandler = request.nextUrl.pathname.startsWith('/auth/');
 
   // If visiting an auth route, clear lingering demo cookie so the user can log into their real account
-  if (isAuthRoute && isDemo) {
+  if ((isAuthRoute || isResetPasswordRoute) && isDemo) {
     supabaseResponse.cookies.set('komorebi_demo', '', { path: '/', maxAge: 0 });
   }
 
@@ -55,6 +56,8 @@ export async function updateSession(request: NextRequest) {
     !user &&
     !isDemo &&
     !isAuthRoute &&
+    !isResetPasswordRoute &&
+    !isAuthHandler &&
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/_next') &&
     !request.nextUrl.pathname.startsWith('/api/auth') &&
@@ -65,7 +68,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Only redirect to dashboard if an actual authenticated user is accessing login/signup
+  // Only redirect to dashboard if an actual authenticated user is accessing login/signup/forgot-password
+  // (Do NOT redirect from /reset-password so the user can complete setting their new password)
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, Mail, User, AlertCircle, Info } from 'lucide-react';
+import { Sparkles, ArrowRight, Mail, User, AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { createLocalScholarProfile } from '@/features/game-state/local-user';
@@ -17,6 +17,9 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isEmailConfirmationSent, setIsEmailConfirmationSent] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   // Clear demo cookie when arriving at signup page
   useEffect(() => {
@@ -24,6 +27,24 @@ export default function SignupPage() {
       document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
   }, []);
+
+  const handleResendConfirmation = async () => {
+    if (!email) return;
+    setIsResending(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+      });
+      setResendSuccess(true);
+      soundEngine.playQuestComplete();
+    } catch {
+      // Ignore or quiet fail
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +81,7 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -85,11 +106,46 @@ export default function SignupPage() {
 
         setErrorMessage(error.message);
         setIsLoading(false);
-      } else {
+        return;
+      }
+
+      // If session was established immediately:
+      if (data?.session) {
         soundEngine.playLevelUp();
         router.push('/dashboard');
         router.refresh();
+        return;
       }
+
+      // If user was created but session is null, attempt immediate sign-in (e.g. auto-confirm trigger)
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (signInData?.session) {
+        soundEngine.playLevelUp();
+        router.push('/dashboard');
+        router.refresh();
+        return;
+      }
+
+      // If email confirmation is required:
+      if (signInError?.message?.toLowerCase().includes('email not confirmed')) {
+        setIsEmailConfirmationSent(true);
+        setIsLoading(false);
+        return;
+      }
+
+      if (signInError) {
+        setErrorMessage(signInError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      soundEngine.playLevelUp();
+      router.push('/dashboard');
+      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       if (msg.toLowerCase().includes('fetch')) {
@@ -143,92 +199,144 @@ export default function SignupPage() {
           </div>
         )}
 
-        <form onSubmit={handleSignup} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1.5">
-              Scholar Name
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-[#8D6E63] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                required
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Satsuki, Rin, Leo"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFBF5] border border-[#D7CCC8] text-sm text-[#3E2723] placeholder:text-[#BCAAA4] focus:outline-none focus:ring-2 focus:ring-[#E07A5F]"
-              />
+        {isEmailConfirmationSent ? (
+          <div className="text-center space-y-4 animate-fade-in py-2">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+              <Mail className="w-7 h-7" />
+            </div>
+
+            <h2 className="text-xl font-bold text-[#3E2723]">Verify Your Scholar Email</h2>
+            <p className="text-xs text-[#8D6E63] leading-relaxed">
+              We've created your character and sent an activation link to <span className="font-bold text-[#3E2723]">{email}</span>. Click the link in your email to enter your study chamber.
+            </p>
+
+            <div className="p-3.5 rounded-2xl bg-[#FFF8E1] border border-[#FFE082] text-[#B78103] text-xs text-left">
+              <div className="font-bold flex items-center gap-1.5 mb-1 text-[#F57F17]">
+                <Info className="w-4 h-4 shrink-0" />
+                <span>Next Step</span>
+              </div>
+              <p>
+                Once verified, you will be directed straight to your study desk. If you don't see the email within a minute, please check your spam or promotions folder.
+              </p>
+            </div>
+
+            {resendSuccess && (
+              <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>A new confirmation link has been sent to your email!</span>
+              </div>
+            )}
+
+            <div className="pt-2 space-y-2.5">
+              <Link
+                href="/login"
+                onClick={() => soundEngine.playClick()}
+                className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-bold text-sm shadow-xs transition-all cursor-pointer"
+              >
+                <span>Go to Sign In</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <button
+                type="button"
+                disabled={isResending}
+                onClick={handleResendConfirmation}
+                className="w-full text-xs font-semibold text-[#8D6E63] hover:text-[#E07A5F] py-1.5 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isResending ? 'Resending email...' : "Didn't receive an email? Resend"}
+              </button>
             </div>
           </div>
+        ) : (
+          <>
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1.5">
+                  Scholar Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-[#8D6E63] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g. Satsuki, Rin, Leo"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFBF5] border border-[#D7CCC8] text-sm text-[#3E2723] placeholder:text-[#BCAAA4] focus:outline-none focus:ring-2 focus:ring-[#E07A5F]"
+                  />
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1.5">
-              Email Address
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-[#8D6E63] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="scholar@lofi-study.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFBF5] border border-[#D7CCC8] text-sm text-[#3E2723] placeholder:text-[#BCAAA4] focus:outline-none focus:ring-2 focus:ring-[#E07A5F]"
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1.5">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-[#8D6E63] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="scholar@lofi-study.com"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFBF5] border border-[#D7CCC8] text-sm text-[#3E2723] placeholder:text-[#BCAAA4] focus:outline-none focus:ring-2 focus:ring-[#E07A5F]"
+                  />
+                </div>
+              </div>
+
+              <PasswordInputWithConfirm
+                password={password}
+                confirmPassword={confirmPassword}
+                onPasswordChange={setPassword}
+                onConfirmPasswordChange={setConfirmPassword}
+                passwordLabel="Password"
+                confirmLabel="Confirm Password"
+                passwordPlaceholder="At least 6 characters"
+                confirmPlaceholder="Re-enter your password"
+                disabled={isLoading}
               />
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              >
+                <span>{isLoading ? 'Creating Character...' : 'Create Character & Start'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+
+            {/* Instant Judge Demo Mode Button */}
+            <div className="mt-5 pt-4 border-t border-[#EFEBE9]">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEngine.playLevelUp();
+                  document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
+                  router.push('/dashboard');
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FFF8E1] to-[#FBE9E7] border border-[#FFE082] text-[#E07A5F] hover:text-[#D46A4F] font-extrabold text-xs shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-[#F4A261] animate-pulse" />
+                <span>One-Click Judge Tour (Instant Demo)</span>
+              </button>
+              <p className="text-[10px] text-center text-[#8D6E63] mt-1.5">
+                Pre-loaded with Level 3 Scholar, unlocked Calico Cat, 5-day streak, and coins.
+              </p>
             </div>
-          </div>
 
-          <PasswordInputWithConfirm
-            password={password}
-            confirmPassword={confirmPassword}
-            onPasswordChange={setPassword}
-            onConfirmPasswordChange={setConfirmPassword}
-            passwordLabel="Password"
-            confirmLabel="Confirm Password"
-            passwordPlaceholder="At least 6 characters"
-            confirmPlaceholder="Re-enter your password"
-            disabled={isLoading}
-          />
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-bold text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-          >
-            <span>{isLoading ? 'Creating Character...' : 'Create Character & Start'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-
-        {/* Instant Judge Demo Mode Button */}
-        <div className="mt-5 pt-4 border-t border-[#EFEBE9]">
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playLevelUp();
-              document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
-              router.push('/dashboard');
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FFF8E1] to-[#FBE9E7] border border-[#FFE082] text-[#E07A5F] hover:text-[#D46A4F] font-extrabold text-xs shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-[#F4A261] animate-pulse" />
-            <span>One-Click Judge Tour (Instant Demo)</span>
-          </button>
-          <p className="text-[10px] text-center text-[#8D6E63] mt-1.5">
-            Pre-loaded with Level 3 Scholar, unlocked Calico Cat, 5-day streak, and coins.
-          </p>
-        </div>
-
-        <div className="mt-5 pt-4 border-t border-[#EFEBE9] text-center text-xs text-[#8D6E63]">
-          Already have a character?{' '}
-          <Link
-            href="/login"
-            className="font-bold text-[#E07A5F] hover:underline"
-            onClick={() => soundEngine.playClick()}
-          >
-            Sign in
-          </Link>
-        </div>
+            <div className="mt-5 pt-4 border-t border-[#EFEBE9] text-center text-xs text-[#8D6E63]">
+              Already have a character?{' '}
+              <Link
+                href="/login"
+                className="font-bold text-[#E07A5F] hover:underline"
+                onClick={() => soundEngine.playClick()}
+              >
+                Sign in
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

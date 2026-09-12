@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Info } from 'lucide-react';
+import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { loginLocalScholar } from '@/features/game-state/local-user';
@@ -14,6 +14,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isEmailNotConfirmed, setIsEmailNotConfirmed] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   // When arriving at login page, clear any lingering demo cookie so user can authenticate to their real account
   useEffect(() => {
@@ -22,9 +25,30 @@ export default function LoginPage() {
     }
   }, []);
 
+  const handleResendEmail = async () => {
+    if (!email.trim()) return;
+    setIsResending(true);
+    setResendSuccess(false);
+    try {
+      const supabase = createClient();
+      await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+      });
+      setResendSuccess(true);
+      soundEngine.playQuestComplete();
+    } catch {
+      // Quiet fail
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setIsEmailNotConfirmed(false);
+    setResendSuccess(false);
     setIsLoading(true);
     soundEngine.playClick();
 
@@ -59,6 +83,13 @@ export default function LoginPage() {
           soundEngine.playQuestComplete();
           router.push('/dashboard');
           router.refresh();
+          return;
+        }
+
+        if (error.message?.toLowerCase().includes('email not confirmed')) {
+          setIsEmailNotConfirmed(true);
+          setErrorMessage('Your email address has not been confirmed yet. Please check your inbox for the activation link, or click below to receive a new one.');
+          setIsLoading(false);
           return;
         }
 
@@ -119,9 +150,31 @@ export default function LoginPage() {
         )}
 
         {errorMessage && (
-          <div className="mb-5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMessage}</span>
+          <div className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+              <span className="leading-relaxed">{errorMessage}</span>
+            </div>
+            {isEmailNotConfirmed && (
+              <div className="pt-1 border-t border-red-200/60 flex items-center justify-between">
+                <span className="text-[11px] text-red-600 font-medium">Need another link?</span>
+                <button
+                  type="button"
+                  disabled={isResending}
+                  onClick={handleResendEmail}
+                  className="font-bold underline text-xs text-[#E07A5F] hover:text-[#D46A4F] cursor-pointer disabled:opacity-50"
+                >
+                  {isResending ? 'Resending...' : 'Resend Verification Email'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {resendSuccess && (
+          <div className="mb-5 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>Verification email sent! Please check your inbox and spam folder.</span>
           </div>
         )}
 
