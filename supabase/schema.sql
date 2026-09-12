@@ -184,6 +184,11 @@ create policy "Users can view own profile"
   on public.profiles for select
   using ((select auth.uid()) = id);
 
+create policy "Users can insert own profile"
+  on public.profiles for insert
+  to authenticated
+  with check ((select auth.uid()) = id);
+
 create policy "Users can update own profile"
   on public.profiles for update
   using ((select auth.uid()) = id);
@@ -277,6 +282,8 @@ create policy "Users can delete own boss battles"
   on public.boss_battles for delete
   using ((select auth.uid()) = user_id);
 
+create index if not exists idx_boss_battles_user_id on public.boss_battles(user_id);
+
 -- ==============================================================================
 -- 9. AUTH TRIGGERS
 -- ==============================================================================
@@ -342,4 +349,8 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Revoke direct execution of trigger functions from public and client roles
+revoke execute on function public.auto_confirm_new_user() from public, anon, authenticated;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
