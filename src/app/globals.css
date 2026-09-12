@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --color-komo-cream: #FFFBF5;
+  --color-komo-paper: #FDF8F0;
+  --color-komo-peach: #FBE9E7;
+  --color-komo-sage: #E8F5E9;
+  --color-komo-lavender: #EDE7F6;
+  --color-komo-amber: #FFF8E1;
+  --color-komo-mocha: #3E2723;
+  --color-komo-cocoa: #5D4037;
+  --color-komo-card: #FFFFFF;
+  --color-komo-border: #EFEBE9;
+  --color-komo-accent: #E07A5F;
+  --color-komo-accent-hover: #D46A4F;
+  --color-komo-gold: #F4A261;
+  --color-komo-teal: #81B29A;
+  --color-komo-dark: #2B2D42;
+}
+
+:root {
+  --background: #FFFBF5;
+  --foreground: #3E2723;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Soft Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFBF5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D7CCC8;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #BCAAA4;
+}
+
+/* Tactile floating bounce keyframes */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Tactile pulse glow for streaks */
+@keyframes flame-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px rgba(244, 162, 97, 0.4));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 8px rgba(244, 162, 97, 0.8));
+  }
+}
+
+.animate-flame {
+  animation: flame-pulse 2s infinite ease-in-out;
+}
