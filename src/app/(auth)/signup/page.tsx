@@ -3,22 +3,37 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, Lock, Mail, User, AlertCircle, Info } from 'lucide-react';
+import { Sparkles, ArrowRight, Mail, User, AlertCircle, Info } from 'lucide-react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { createLocalScholarProfile } from '@/features/game-state/local-user';
+import { PasswordInputWithConfirm } from '@/features/auth';
 
 export default function SignupPage() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      soundEngine.playClick();
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match. Please make sure both passwords are typed identically.');
+      soundEngine.playClick();
+      return;
+    }
+
     setIsLoading(true);
     soundEngine.playClick();
 
@@ -151,23 +166,17 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1.5">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-[#8D6E63] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#FFFBF5] border border-[#D7CCC8] text-sm text-[#3E2723] placeholder:text-[#BCAAA4] focus:outline-none focus:ring-2 focus:ring-[#E07A5F]"
-              />
-            </div>
-          </div>
+          <PasswordInputWithConfirm
+            password={password}
+            confirmPassword={confirmPassword}
+            onPasswordChange={setPassword}
+            onConfirmPasswordChange={setConfirmPassword}
+            passwordLabel="Password"
+            confirmLabel="Confirm Password"
+            passwordPlaceholder="At least 6 characters"
+            confirmPlaceholder="Re-enter your password"
+            disabled={isLoading}
+          />
 
           <button
             type="submit"

@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Flame, Coins, Trophy, Edit3, Check } from 'lucide-react';
+import { Flame, Coins, Trophy, Edit3, Check, KeyRound } from 'lucide-react';
 import { Profile } from '@/types/database';
 import { getTitleForLevel, getXpRequiredForLevel } from '@/lib/game/engine';
 import { AvatarDisplay } from '@/features/avatar';
 import { soundEngine } from '@/lib/audio/sound-engine';
+import { ChangePasswordModal } from '@/features/auth';
 
 interface ProfileHeroCardProps {
   profile: Profile;
@@ -17,6 +18,7 @@ export const ProfileHeroCard: React.FC<ProfileHeroCardProps> = ({
   onUpdateDisplayName,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [nameInput, setNameInput] = useState(profile.display_name || '');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -56,11 +58,25 @@ export const ProfileHeroCard: React.FC<ProfileHeroCardProps> = ({
 
         {/* Profile Stats Overview */}
         <div className="md:col-span-7 space-y-4">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-[#FBE9E7] text-[#E07A5F] text-xs font-bold uppercase tracking-wider">
-              Level {profile.level} Scholar
-            </span>
-            <span className="text-xs font-bold text-[#8D6E63] italic">• {title}</span>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-[#FBE9E7] text-[#E07A5F] text-xs font-bold uppercase tracking-wider">
+                Level {profile.level} Scholar
+              </span>
+              <span className="text-xs font-bold text-[#8D6E63] italic">• {title}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                soundEngine.playClick();
+                setIsChangingPassword(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#F5EFEB] hover:bg-[#EFEBE9] text-[#5D4037] text-xs font-semibold transition-colors cursor-pointer"
+              title="Change Account Password"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-[#E07A5F]" />
+              <span>Change Password</span>
+            </button>
           </div>
 
           {/* Display Name Edit */}
@@ -144,6 +160,11 @@ export const ProfileHeroCard: React.FC<ProfileHeroCardProps> = ({
           </div>
         </div>
       </div>
+
+      <ChangePasswordModal
+        isOpen={isChangingPassword}
+        onClose={() => setIsChangingPassword(false)}
+      />
     </div>
   );
 };
