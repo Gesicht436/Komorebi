@@ -10,6 +10,7 @@ import {
   Quest,
   ShopItem,
   Voucher,
+  BossBattle,
 } from '@/types/database';
 import {
   processXpGain,
@@ -28,6 +29,7 @@ import {
   savePersistedDemoState,
   resetPersistedDemoState,
 } from '@/features/game-state/demo-storage';
+import { DEMO_BOSS_BATTLE } from '@/features/game-state/demo-data';
 import { GameContextType } from '@/features/game-state/types';
 import { STREAK_SHIELD_CONFIG } from '@/features/shop/constants/streak-shield';
 import { GACHA_PULL_COST, GachaItem, drawGachaItem } from '@/features/shop/constants/gacha-pool';
@@ -39,6 +41,12 @@ import {
   evaluateScoreMilestones,
   checkDailyScoreReset,
 } from '@/lib/game/daily-score';
+import {
+  createDefaultBossBattle,
+  getTaskDamage,
+  getPomoDamage,
+  getHabitDamage,
+} from '@/lib/game/boss-battle';
 
 export type { TimerMode, TimerDurations, TimerState };
 
@@ -53,8 +61,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [bossBattle, setBossBattle] = useState<BossBattle | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Stable refs for real-time combat & timer events
+  const profileRef = React.useRef(profile);
+  profileRef.current = profile;
+  const questsRef = React.useRef(quests);
+  questsRef.current = quests;
+  const inventoryRef = React.useRef(inventory);
+  inventoryRef.current = inventory;
+  const activityLogsRef = React.useRef(activityLogs);
+  activityLogsRef.current = activityLogs;
+  const bossBattleRef = React.useRef(bossBattle);
+  bossBattleRef.current = bossBattle;
+  const isDemoModeRef = React.useRef(isDemoMode);
+  isDemoModeRef.current = isDemoMode;
 
   // Level Up Modal State
   const [levelUpModal, setLevelUpModal] = useState<{ isOpen: boolean; newLevel: number }>({
@@ -74,6 +97,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setInventory(state.inventory);
     setVouchers(state.vouchers);
     setActivityLogs(state.activityLogs);
+    setBossBattle(state.bossBattle || DEMO_BOSS_BATTLE);
     setIsLoading(false);
   }, []);
 
@@ -89,6 +113,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setInventory(fresh.inventory);
     setVouchers(fresh.vouchers);
     setActivityLogs(fresh.activityLogs);
+    setBossBattle(fresh.bossBattle || DEMO_BOSS_BATTLE);
   }, []);
 
   // Fetch initial profile & game state
@@ -184,17 +209,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(profileData as Profile);
       }
 
-      const [questsRes, invRes, vouchersRes, logsRes] = await Promise.all([
+      const [questsRes, invRes, vouchersRes, logsRes, bossRes] = await Promise.all([
         supabase.from('quests').select('*').order('created_at', { ascending: false }),
         supabase.from('inventory').select('*').order('acquired_at', { ascending: false }),
         supabase.from('vouchers').select('*').order('created_at', { ascending: false }),
         supabase.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(20),
+        supabase.from('boss_battles').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1),
       ]);
 
       setQuests((questsRes.data as Quest[]) || []);
       setInventory((invRes.data as InventoryItem[]) || []);
       setVouchers((vouchersRes.data as Voucher[]) || []);
       setActivityLogs((logsRes.data as ActivityLog[]) || []);
+
+      let currentBoss = bossRes.data?.[0] as BossBattle | undefined;
+      if (!currentBoss) {
+        const defaultBoss = createDefaultBossBattle(user.id, 'dragon');
+        const { data: createdBoss } = await supabase.from('boss_battles').insert(defaultBoss).select().single();
+        currentBoss = (createdBoss as BossBattle) || defaultBoss;
+      }
+      setBossBattle(currentBoss);
+      bossBattleRef.current = currentBoss;
     } else {
       // No active Supabase session
       if (typeof document !== 'undefined' && document.cookie.includes('komorebi_demo=true')) {
@@ -202,6 +237,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       setProfile(null);
+      setBossBattle(null);
+      bossBattleRef.current = null;
     }
     } catch (err) {
       console.error('Error fetching game data:', err);
@@ -213,6 +250,174 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // DAMAGE BOSS BATTLE (Active Dungeon Raid)
+  const damageBoss = useCallback(
+    async (damage: number, sourceName: string = 'Quest Completion') => {
+      const currentBoss = bossBattleRef.current;
+      const currentProfile = profileRef.current;
+      const isDemo = isDemoModeRef.current;
+      if (!currentBoss || !currentProfile) return;
+      if (currentBoss.is_defeated || currentBoss.current_hp <= 0) return;
+
+      const newHp = Math.max(0, currentBoss.current_hp - damage);
+      const nowDefeated = newHp === 0 && !currentBoss.is_defeated;
+
+      const updatedBoss: BossBattle = {
+        ...currentBoss,
+        current_hp: newHp,
+        is_defeated: nowDefeated ? true : currentBoss.is_defeated,
+        defeated_at: nowDefeated ? new Date().toISOString() : currentBoss.defeated_at,
+      };
+      bossBattleRef.current = updatedBoss;
+      setBossBattle(updatedBoss);
+
+      if (nowDefeated) {
+        soundEngine.playBossDefeated();
+
+        // Award Boss Raid Victory Rewards
+        const bonusXp = currentBoss.reward_xp;
+        const bonusCoins = currentBoss.reward_coins;
+        const levelResult = processXpGain(currentProfile.level, currentProfile.current_xp, bonusXp);
+
+        const updatedProfile: Profile = {
+          ...currentProfile,
+          level: levelResult.newLevel,
+          current_xp: levelResult.newCurrentXp,
+          total_xp: currentProfile.total_xp + bonusXp,
+          coins: currentProfile.coins + bonusCoins,
+        };
+        profileRef.current = updatedProfile;
+        setProfile(updatedProfile);
+
+        // Forge legendary loot trophy into inventory
+        const newLootItem: InventoryItem = {
+          id: `loot-${Date.now()}`,
+          user_id: currentProfile.id,
+          item_id: currentBoss.reward_item_id,
+          item_name: currentBoss.reward_item_name,
+          category: 'collectible',
+          acquired_at: new Date().toISOString(),
+        };
+        const updatedInventory = [newLootItem, ...inventoryRef.current];
+        inventoryRef.current = updatedInventory;
+        setInventory(updatedInventory);
+
+        const defeatLog: ActivityLog = {
+          id: `log-${Date.now()}`,
+          user_id: currentProfile.id,
+          action_type: 'boss_defeated',
+          xp_gained: bonusXp,
+          coins_change: bonusCoins,
+          metadata: {
+            boss_name: currentBoss.boss_name,
+            reward_item: currentBoss.reward_item_name,
+          },
+          created_at: new Date().toISOString(),
+        };
+        const updatedLogs = [defeatLog, ...activityLogsRef.current.slice(0, 19)];
+        activityLogsRef.current = updatedLogs;
+        setActivityLogs(updatedLogs);
+
+        if (levelResult.levelsGained > 0) {
+          soundEngine.playLevelUp();
+          setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+        }
+
+        if (isDemo) {
+          savePersistedDemoState({
+            bossBattle: updatedBoss,
+            profile: updatedProfile,
+            inventory: updatedInventory,
+            activityLogs: updatedLogs,
+          });
+          return;
+        }
+
+        try {
+          await supabase.from('boss_battles').update({
+            current_hp: 0,
+            is_defeated: true,
+            defeated_at: new Date().toISOString(),
+          }).eq('id', currentBoss.id);
+
+          await supabase.from('profiles').update({
+            level: updatedProfile.level,
+            current_xp: updatedProfile.current_xp,
+            total_xp: updatedProfile.total_xp,
+            coins: updatedProfile.coins,
+          }).eq('id', currentProfile.id);
+
+          await supabase.from('inventory').insert(newLootItem);
+          await supabase.from('activity_logs').insert(defeatLog);
+        } catch (err) {
+          console.error('Error recording boss defeat:', err);
+        }
+      } else {
+        const strikeLog: ActivityLog = {
+          id: `log-${Date.now()}`,
+          user_id: currentProfile.id,
+          action_type: 'boss_attacked',
+          xp_gained: 0,
+          coins_change: 0,
+          metadata: {
+            boss_name: currentBoss.boss_name,
+            damage_dealt: damage,
+            source: sourceName,
+            remaining_hp: newHp,
+          },
+          created_at: new Date().toISOString(),
+        };
+        const updatedLogs = [strikeLog, ...activityLogsRef.current.slice(0, 19)];
+        activityLogsRef.current = updatedLogs;
+        setActivityLogs(updatedLogs);
+
+        if (isDemo) {
+          savePersistedDemoState({ bossBattle: updatedBoss, activityLogs: updatedLogs });
+          return;
+        }
+
+        try {
+          await supabase.from('boss_battles').update({ current_hp: newHp }).eq('id', currentBoss.id);
+          await supabase.from('activity_logs').insert(strikeLog);
+        } catch (err) {
+          console.error('Error updating boss HP:', err);
+        }
+      }
+    },
+    [supabase]
+  );
+
+  // RESET / SUMMON NEW BOSS BATTLE
+  const resetBoss = useCallback(
+    async (type: 'dragon' | 'golem' | 'specter' = 'dragon', targetDeadline?: string) => {
+      const currentProfile = profileRef.current;
+      if (!currentProfile) return;
+      const newBoss = createDefaultBossBattle(currentProfile.id, type);
+      if (targetDeadline) {
+        newBoss.target_deadline = targetDeadline;
+      }
+      bossBattleRef.current = newBoss;
+      setBossBattle(newBoss);
+
+      if (isDemoModeRef.current) {
+        savePersistedDemoState({ bossBattle: newBoss });
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.from('boss_battles').insert(newBoss).select().single();
+        if (!error && data) {
+          const loaded = data as BossBattle;
+          bossBattleRef.current = loaded;
+          setBossBattle(loaded);
+        }
+      } catch (err) {
+        console.error('Error creating new boss battle:', err);
+      }
+    },
+    [supabase]
+  );
 
   // COMPLETE POMODORO SESSION
   const completePomodoroSession = useCallback(async (durationMinutes: number) => {
@@ -272,6 +477,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
     setActivityLogs(updatedLogs);
 
+    profileRef.current = updatedProfile;
+    activityLogsRef.current = updatedLogs;
+
+    // Direct combat damage to active Boss Raid
+    await damageBoss(getPomoDamage(durationMinutes), 'Pomodoro Focus Session');
+
     if (isDemoMode) {
       savePersistedDemoState({ profile: updatedProfile, activityLogs: updatedLogs });
       return;
@@ -304,7 +515,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.error('Error logging pomodoro session:', err);
     }
-  }, [profile, isDemoMode, activityLogs, supabase]);
+  }, [profile, isDemoMode, activityLogs, supabase, damageBoss]);
 
   // Hook into dedicated Pomodoro Timer Engine
   const {
@@ -386,6 +597,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       soundEngine.playQuestComplete();
     }
+
+    profileRef.current = updatedProfile;
+    questsRef.current = updatedQuests;
+    activityLogsRef.current = updatedLogs;
+
+    // Direct combat damage to active Boss Raid
+    await damageBoss(getTaskDamage(quest.difficulty), quest.title);
 
     if (isDemoMode) {
       savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile, activityLogs: updatedLogs });
@@ -550,6 +768,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
       setActivityLogs(updatedLogs);
+
+      profileRef.current = updatedProfile;
+      questsRef.current = updatedQuests;
+      activityLogsRef.current = updatedLogs;
+
+      // Direct combat damage to active Boss Raid
+      await damageBoss(getHabitDamage(), quest.title);
 
       if (isDemoMode) {
         savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile, activityLogs: updatedLogs });
@@ -993,6 +1218,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateTimerDurations,
         onEnterFocusPage,
         onLeaveFocusPage,
+
+        // Boss Battle Dungeon Raid
+        bossBattle,
+        damageBoss,
+        resetBoss,
       }}
     >
       {children}

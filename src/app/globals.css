@@ -78,3 +78,31 @@ body {
 .animate-flame {
   animation: flame-pulse 2s infinite ease-in-out;
 }
+
+/* Vinyl Turntable slow continuous rotation */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 4s linear infinite;
+}
+
+/* Boss attack impact shake */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 3px); }
+  40% { transform: translate(4px, -3px); }
+  60% { transform: translate(-3px, -2px); }
+  80% { transform: translate(3px, 2px); }
+}
+
+.animate-shake {
+  animation: screen-shake 0.35s ease-in-out;
+}
+

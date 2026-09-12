@@ -240,6 +240,43 @@ create policy "Users can insert own activity logs"
   on public.activity_logs for insert
   with check ((select auth.uid()) = user_id);
 
+-- 7. BOSS BATTLES TABLE (Accountability Dungeon Raids)
+create table if not exists public.boss_battles (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  boss_name text default 'Ignis, the Procrastination Wyrm' not null,
+  boss_title text default 'Ancient Beast of Delay & Distraction' not null,
+  boss_type text default 'dragon' not null,
+  max_hp integer default 500 not null,
+  current_hp integer default 500 not null,
+  is_defeated boolean default false not null,
+  reward_xp integer default 150 not null,
+  reward_coins integer default 100 not null,
+  reward_item_id text default 'dragon_quill' not null,
+  reward_item_name text default 'Dragon Fang Quill' not null,
+  target_deadline date,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  defeated_at timestamp with time zone
+);
+
+alter table public.boss_battles enable row level security;
+
+create policy "Users can view own boss battles"
+  on public.boss_battles for select
+  using ((select auth.uid()) = user_id);
+
+create policy "Users can insert own boss battles"
+  on public.boss_battles for insert
+  with check ((select auth.uid()) = user_id);
+
+create policy "Users can update own boss battles"
+  on public.boss_battles for update
+  using ((select auth.uid()) = user_id);
+
+create policy "Users can delete own boss battles"
+  on public.boss_battles for delete
+  using ((select auth.uid()) = user_id);
+
 -- ==============================================================================
 -- 9. AUTH TRIGGERS
 -- ==============================================================================

@@ -7,6 +7,9 @@ export const loadPersistedDemoState = (): PersistedState => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.profile && Array.isArray(parsed.quests)) {
+        if (!parsed.bossBattle) {
+          parsed.bossBattle = { ...getInitialDemoState().bossBattle };
+        }
         return parsed;
       }
     }

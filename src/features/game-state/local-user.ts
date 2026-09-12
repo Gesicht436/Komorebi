@@ -1,5 +1,6 @@
 import { Profile, Quest, InventoryItem, Voucher, ActivityLog } from '@/types/database';
 import { PersistedState, DEMO_STORAGE_KEY } from './demo-data';
+import { createDefaultBossBattle } from '@/lib/game/boss-battle';
 
 export function createLocalScholarProfile(displayName: string, email: string): PersistedState {
   const trimmedName = displayName.trim() || 'Cozy Scholar';
@@ -128,6 +129,7 @@ export function createLocalScholarProfile(displayName: string, email: string): P
     inventory,
     vouchers,
     activityLogs,
+    bossBattle: createDefaultBossBattle(userId, 'dragon'),
   };
 
   if (typeof window !== 'undefined') {

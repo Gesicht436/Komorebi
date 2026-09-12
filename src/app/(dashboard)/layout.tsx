@@ -3,6 +3,7 @@
 import React from 'react';
 import { GameProvider, useGame } from '@/context/GameContext';
 import { TopNav } from '@/components/navigation/TopNav';
+import { FloatingVinylMiniPlayer } from '@/features/audio';
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { profile, isLoading, signOut, isDemoMode, resetDemoData } = useGame();
@@ -30,6 +31,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>
+      <FloatingVinylMiniPlayer />
     </div>
   );
 }

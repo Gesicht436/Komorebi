@@ -5,6 +5,7 @@ import {
   Voucher,
   ActivityLog,
   ShopItem,
+  BossBattle,
 } from '@/types/database';
 import { TimerState, TimerMode, TimerDurations } from '../focus/types';
 import { GachaItem } from '../shop/constants/gacha-pool';
@@ -46,4 +47,9 @@ export interface GameContextType {
   updateTimerDurations: (durations: TimerDurations) => void;
   onEnterFocusPage: () => void;
   onLeaveFocusPage: () => void;
+
+  // Boss Battle Dungeon Raid
+  bossBattle: BossBattle | null;
+  damageBoss: (damage: number, sourceName: string) => Promise<void>;
+  resetBoss: (type: 'dragon' | 'golem' | 'specter', targetDeadline?: string) => Promise<void>;
 }

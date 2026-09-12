@@ -19,6 +19,7 @@ import { getTitleForLevel, getXpRequiredForLevel } from '@/lib/game/engine';
 import { getCharacterEvolution } from '@/lib/game/evolution';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { DailyProductivityScoreCard } from '@/features/dashboard';
+import { BossRaidPreviewCard, BossBattleArena } from '@/features/boss';
 
 export default function StudyRoomPage() {
   const {
@@ -28,7 +29,12 @@ export default function StudyRoomPage() {
     deleteQuest,
     updateHabit,
     isStudying,
+    bossBattle,
+    damageBoss,
+    resetBoss,
   } = useGame();
+
+  const [isArenaOpen, setIsArenaOpen] = React.useState(false);
 
   if (!profile) return null;
 
@@ -163,10 +169,18 @@ export default function StudyRoomPage() {
         </div>
       </div>
  
-       {/* Daily Productivity Score (0-100 pts) */}
-       <DailyProductivityScoreCard profile={profile} quests={quests} />
+      {/* Active Boss Raid Dungeon Preview Card */}
+      {bossBattle && (
+        <BossRaidPreviewCard
+          boss={bossBattle}
+          onOpenArena={() => setIsArenaOpen(true)}
+        />
+      )}
 
-       {/* Priority Quests Section */}
+      {/* Daily Productivity Score (0-100 pts) */}
+      <DailyProductivityScoreCard profile={profile} quests={quests} />
+
+      {/* Priority Quests Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -214,6 +228,23 @@ export default function StudyRoomPage() {
           </div>
         )}
       </div>
+
+      {/* Boss Raid Arena Fullscreen / Backdrop Modal */}
+      {isArenaOpen && bossBattle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md overflow-y-auto animate-fadeIn">
+          <div className="w-full max-w-4xl my-auto">
+            <BossBattleArena
+              boss={bossBattle}
+              profile={profile}
+              quests={quests}
+              onDamageBoss={damageBoss}
+              onResetBoss={resetBoss}
+              onCompleteQuest={completeQuest}
+              onClose={() => setIsArenaOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

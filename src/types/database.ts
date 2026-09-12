@@ -81,12 +81,32 @@ export interface ActivityLog {
     | 'streak_shield_bought'
     | 'gacha_pulled'
     | 'streak_shield_used'
-    | 'daily_score_milestone';
+    | 'daily_score_milestone'
+    | 'boss_attacked'
+    | 'boss_defeated';
   xp_gained: number;
   coins_change: number;
   attribute?: QuestAttribute;
   metadata?: Record<string, unknown>;
   created_at: string;
+}
+
+export interface BossBattle {
+  id: string;
+  user_id: string;
+  boss_name: string;
+  boss_title: string;
+  boss_type: 'dragon' | 'golem' | 'specter';
+  max_hp: number;
+  current_hp: number;
+  is_defeated: boolean;
+  reward_xp: number;
+  reward_coins: number;
+  reward_item_id: string;
+  reward_item_name: string;
+  target_deadline: string | null;
+  created_at: string;
+  defeated_at?: string | null;
 }
 
 export interface ShopItem {
@@ -100,3 +120,4 @@ export interface ShopItem {
   previewColor?: string;
   bonusText?: string;
 }
+

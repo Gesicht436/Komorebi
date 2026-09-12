@@ -4,6 +4,7 @@ import {
   InventoryItem,
   Voucher,
   ActivityLog,
+  BossBattle,
 } from '@/types/database';
 
 export interface PersistedState {
@@ -12,6 +13,7 @@ export interface PersistedState {
   inventory: InventoryItem[];
   vouchers: Voucher[];
   activityLogs: ActivityLog[];
+  bossBattle?: BossBattle | null;
 }
 
 export const DEMO_STORAGE_KEY = 'komorebi_demo_state';
@@ -174,10 +176,30 @@ export const DEMO_LOGS: ActivityLog[] = [
   },
 ];
 
+export const DEMO_BOSS_BATTLE: BossBattle = {
+  id: 'demo-boss-1',
+  user_id: 'demo-judge-id',
+  boss_name: 'Ignis, the Procrastination Wyrm',
+  boss_title: 'Ancient Beast of Delay & Distraction',
+  boss_type: 'dragon',
+  max_hp: 500,
+  current_hp: 340,
+  is_defeated: false,
+  reward_xp: 150,
+  reward_coins: 100,
+  reward_item_id: 'dragon_quill',
+  reward_item_name: 'Dragon Fang Feather Quill',
+  target_deadline: 'Friday Hackathon Demo',
+  created_at: new Date().toISOString(),
+  defeated_at: null,
+};
+
 export const getInitialDemoState = (): PersistedState => ({
   profile: { ...DEMO_PROFILE },
   quests: DEMO_QUESTS.map((q) => ({ ...q })),
   inventory: DEMO_INVENTORY.map((i) => ({ ...i })),
   vouchers: DEMO_VOUCHERS.map((v) => ({ ...v })),
   activityLogs: DEMO_LOGS.map((l) => ({ ...l })),
+  bossBattle: { ...DEMO_BOSS_BATTLE },
 });
+
