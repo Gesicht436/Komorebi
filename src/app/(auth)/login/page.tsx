@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, ArrowRight, Lock, Mail, AlertCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Info } from 'lucide-react';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { soundEngine } from '@/lib/audio/sound-engine';
+import { loginLocalScholar } from '@/features/game-state/local-user';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,19 +21,53 @@ export default function LoginPage() {
     setIsLoading(true);
     soundEngine.playClick();
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setIsLoading(false);
-    } else {
+    // If Supabase credentials are placeholder or unconfigured, login locally in sandbox mode
+    if (!isSupabaseConfigured()) {
+      loginLocalScholar(email);
       soundEngine.playQuestComplete();
       router.push('/dashboard');
       router.refresh();
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        // If network fetch fails (e.g. invalid Supabase domain / offline), fallback to local sandbox login
+        if (
+          error.message?.toLowerCase().includes('failed to fetch') ||
+          error.message?.toLowerCase().includes('fetch')
+        ) {
+          loginLocalScholar(email);
+          soundEngine.playQuestComplete();
+          router.push('/dashboard');
+          router.refresh();
+          return;
+        }
+
+        setErrorMessage(error.message);
+        setIsLoading(false);
+      } else {
+        soundEngine.playQuestComplete();
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Login failed';
+      if (msg.toLowerCase().includes('fetch')) {
+        loginLocalScholar(email);
+        soundEngine.playQuestComplete();
+        router.push('/dashboard');
+        router.refresh();
+        return;
+      }
+      setErrorMessage(msg);
+      setIsLoading(false);
     }
   };
 
@@ -54,9 +89,19 @@ export default function LoginPage() {
       {/* Login Card */}
       <div className="max-w-md w-full bg-white border border-[#EFEBE9] rounded-3xl p-7 sm:p-9 shadow-sm">
         <h2 className="text-xl font-bold text-[#3E2723] mb-1">Welcome Back, Scholar</h2>
-        <p className="text-xs text-[#8D6E63] mb-6">
+        <p className="text-xs text-[#8D6E63] mb-4">
           Sign in to access your study desk, companions, and active quests.
         </p>
+
+        {/* Informational Sandbox Badge if Supabase is placeholder */}
+        {!isSupabaseConfigured() && (
+          <div className="mb-5 p-3 rounded-2xl bg-[#FFF8E1] border border-[#FFE082] text-[#B78103] text-xs flex items-start gap-2">
+            <Info className="w-4 h-4 shrink-0 mt-0.5 text-[#F57F17]" />
+            <div>
+              <span className="font-bold">Local Sandbox Active:</span> You can sign in with any account. Data saves locally in your browser.
+            </div>
+          </div>
+        )}
 
         {errorMessage && (
           <div className="mb-5 p-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
