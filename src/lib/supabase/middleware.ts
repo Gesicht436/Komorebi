@@ -41,7 +41,14 @@ export async function updateSession(request: NextRequest) {
   const isDemo = request.cookies.get('komorebi_demo')?.value === 'true';
   const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/signup');
+    request.nextUrl.pathname.startsWith('/signup') ||
+    request.nextUrl.pathname.startsWith('/forgot-password') ||
+    request.nextUrl.pathname.startsWith('/reset-password');
+
+  // If visiting an auth route, clear lingering demo cookie so the user can log into their real account
+  if (isAuthRoute && isDemo) {
+    supabaseResponse.cookies.set('komorebi_demo', '', { path: '/', maxAge: 0 });
+  }
 
   // Protect app routes if not logged in and not in demo mode
   if (
@@ -58,8 +65,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect to dashboard if logged in (or in demo mode) and accessing login/signup
-  if ((user || isDemo) && isAuthRoute) {
+  // Only redirect to dashboard if an actual authenticated user is accessing login/signup
+  if (user && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

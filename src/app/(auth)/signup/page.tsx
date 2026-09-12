@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Sparkles, ArrowRight, Mail, User, AlertCircle, Info } from 'lucide-react';
@@ -18,9 +18,21 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Clear demo cookie when arriving at signup page
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  }, []);
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    // Clear demo cookie immediately before signing up
+    if (typeof document !== 'undefined') {
+      document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
 
     if (password.length < 6) {
       setErrorMessage('Password must be at least 6 characters long.');

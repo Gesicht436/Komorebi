@@ -85,27 +85,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch initial profile & game state
   const fetchData = useCallback(async () => {
-    if (typeof document !== 'undefined' && document.cookie.includes('komorebi_demo=true')) {
-      loadDemoState();
-      return;
-    }
-
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) {
-        setProfile(null);
-        setIsLoading(false);
-        return;
-      }
+      if (user) {
+        // Authenticated Supabase account takes precedence! Clear any stale demo cookie
+        setIsDemoMode(false);
+        if (typeof document !== 'undefined') {
+          document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
 
-      const { data: profileData, error: profileErr } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+        const { data: profileData, error: profileErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
       if (profileErr || !profileData) {
         const initialProfile: Partial<Profile> = {
@@ -176,6 +172,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInventory((invRes.data as InventoryItem[]) || []);
       setVouchers((vouchersRes.data as Voucher[]) || []);
       setActivityLogs((logsRes.data as ActivityLog[]) || []);
+    } else {
+      // No active Supabase session
+      if (typeof document !== 'undefined' && document.cookie.includes('komorebi_demo=true')) {
+        loadDemoState();
+        return;
+      }
+      setProfile(null);
+    }
     } catch (err) {
       console.error('Error fetching game data:', err);
     } finally {
@@ -783,11 +787,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // SIGN OUT
   const signOut = async () => {
     if (typeof document !== 'undefined') {
-      document.cookie = 'komorebi_demo=; path=/; max-age=0';
+      document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
     setIsDemoMode(false);
     await supabase.auth.signOut();
     setProfile(null);
+    setQuests([]);
+    setInventory([]);
+    setVouchers([]);
+    setActivityLogs([]);
     router.push('/login');
     router.refresh();
   };

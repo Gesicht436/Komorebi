@@ -38,15 +38,25 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/login"
-            onClick={() => soundEngine.playClick()}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-[#5D4037] hover:bg-[#F5EFEB] transition-colors"
+            onClick={() => {
+              soundEngine.playClick();
+              if (typeof document !== 'undefined') {
+                document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              }
+            }}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-[#5D4037] hover:bg-[#F5EFEB] transition-colors cursor-pointer"
           >
             Sign In
           </Link>
           <Link
             href="/signup"
-            onClick={() => soundEngine.playClick()}
-            className="px-5 py-2.5 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white text-xs font-bold shadow-sm shadow-[#E07A5F]/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            onClick={() => {
+              soundEngine.playClick();
+              if (typeof document !== 'undefined') {
+                document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+              }
+            }}
+            className="px-5 py-2.5 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white text-xs font-bold shadow-sm shadow-[#E07A5F]/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             Begin Journey
           </Link>
@@ -75,16 +85,26 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <Link
                 href="/signup"
-                onClick={() => soundEngine.playClick()}
-                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-extrabold text-sm shadow-md shadow-[#E07A5F]/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                onClick={() => {
+                  soundEngine.playClick();
+                  if (typeof document !== 'undefined') {
+                    document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                  }
+                }}
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-extrabold text-sm shadow-md shadow-[#E07A5F]/20 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <span>Enter Your Study Room</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/login"
-                onClick={() => soundEngine.playClick()}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white border border-[#D7CCC8] hover:bg-[#F5EFEB] text-[#5D4037] font-bold text-sm shadow-xs transition-colors"
+                onClick={() => {
+                  soundEngine.playClick();
+                  if (typeof document !== 'undefined') {
+                    document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                  }
+                }}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white border border-[#D7CCC8] hover:bg-[#F5EFEB] text-[#5D4037] font-bold text-sm shadow-xs transition-colors cursor-pointer"
               >
                 <span>Existing Scholar Sign In</span>
               </Link>

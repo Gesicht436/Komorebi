@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Info } from 'lucide-react';
@@ -15,11 +15,23 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // When arriving at login page, clear any lingering demo cookie so user can authenticate to their real account
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setIsLoading(true);
     soundEngine.playClick();
+
+    // Clear demo mode cookie immediately before authenticating
+    if (typeof document !== 'undefined') {
+      document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
 
     // If Supabase credentials are placeholder or unconfigured, login locally in sandbox mode
     if (!isSupabaseConfigured()) {
@@ -53,6 +65,9 @@ export default function LoginPage() {
         setErrorMessage(error.message);
         setIsLoading(false);
       } else {
+        if (typeof document !== 'undefined') {
+          document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        }
         soundEngine.playQuestComplete();
         router.push('/dashboard');
         router.refresh();

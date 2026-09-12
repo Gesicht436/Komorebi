@@ -128,6 +128,8 @@ export function createLocalScholarProfile(displayName: string, email: string): P
   };
 
   if (typeof window !== 'undefined') {
+    const userKey = `komorebi_user_${trimmedEmail.toLowerCase()}`;
+    localStorage.setItem(userKey, JSON.stringify(state));
     localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(state));
     document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
   }
@@ -138,19 +140,23 @@ export function createLocalScholarProfile(displayName: string, email: string): P
 export function loginLocalScholar(email: string): void {
   if (typeof window === 'undefined') return;
 
-  const raw = localStorage.getItem(DEMO_STORAGE_KEY);
-  if (raw) {
+  const trimmedEmail = email.trim().toLowerCase();
+  const userKey = `komorebi_user_${trimmedEmail}`;
+
+  // Check if a local profile exists for THIS email
+  const existingUserRaw = localStorage.getItem(userKey);
+  if (existingUserRaw) {
     try {
-      const parsed: PersistedState = JSON.parse(raw);
+      const parsed: PersistedState = JSON.parse(existingUserRaw);
       if (parsed && parsed.profile) {
-        // Log in with existing local profile
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(parsed));
         document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
         return;
       }
     } catch {}
   }
 
-  // Otherwise generate a fresh scholar for this email
+  // Otherwise generate a fresh scholar for this specific email
   const nameFromEmail = email.split('@')[0] || 'Cozy Scholar';
   createLocalScholarProfile(nameFromEmail, email);
 }
