@@ -45,6 +45,7 @@ create table if not exists public.profiles (
   total_xp integer default 0 not null,
   coins integer default 50 not null, -- Welcome starter coins
   streak_count integer default 0 not null,
+  streak_shields integer default 0 not null,
   last_active_date date default current_date,
   
   -- Life RPG Attributes (XP earned per attribute)

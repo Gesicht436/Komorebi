@@ -7,16 +7,22 @@ import { ShopViewProps, ShopTab } from '../types';
 import { BoutiqueSection } from './BoutiqueSection';
 import { VoucherSection } from './VoucherSection';
 import { CreateVoucherModal } from './CreateVoucherModal';
+import { StreakShieldCard } from './StreakShieldCard';
+import { GachaMachine } from './GachaMachine';
+import { CoinLedger } from './CoinLedger';
 
 export const ShopView: React.FC<ShopViewProps> = ({
   profile,
   inventory,
   vouchers,
+  activityLogs,
   onPurchaseItem,
   onEquipItem,
   onCreateVoucher,
   onRedeemVoucher,
   onDeleteVoucher,
+  onBuyStreakShield,
+  onPullGacha,
 }) => {
   const [activeTab, setActiveTab] = useState<ShopTab>('virtual');
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
@@ -27,10 +33,10 @@ export const ShopView: React.FC<ShopViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3E2723]">
-            Boutique & Reward Vouchers
+            Rewards & Study Economy
           </h1>
           <p className="text-xs sm:text-sm text-[#8D6E63] mt-1">
-            Exchange your earned study coins for cute anime companion apparel, desk pets, and real-life treats.
+            Exchange your earned study coins for anime apparel, desk pets, mystery capsules, and real-life treats.
           </p>
         </div>
 
@@ -45,13 +51,13 @@ export const ShopView: React.FC<ShopViewProps> = ({
       </div>
 
       {/* Main Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-[#EFEBE9] pb-3">
+      <div className="flex items-center gap-2 border-b border-[#EFEBE9] pb-3 overflow-x-auto">
         <button
           onClick={() => {
             soundEngine.playClick();
             setActiveTab('virtual');
           }}
-          className={`px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'virtual'
               ? 'bg-[#E07A5F] text-white shadow-xs'
               : 'bg-white border border-[#EFEBE9] text-[#5D4037] hover:bg-[#F5EFEB]'
@@ -64,7 +70,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
             soundEngine.playClick();
             setActiveTab('vouchers');
           }}
-          className={`px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+          className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
             activeTab === 'vouchers'
               ? 'bg-[#E07A5F] text-white shadow-xs'
               : 'bg-white border border-[#EFEBE9] text-[#5D4037] hover:bg-[#F5EFEB]'
@@ -72,16 +78,49 @@ export const ShopView: React.FC<ShopViewProps> = ({
         >
           Real-Life Vouchers ({vouchers.length})
         </button>
+        <button
+          onClick={() => {
+            soundEngine.playClick();
+            setActiveTab('gacha');
+          }}
+          className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'gacha'
+              ? 'bg-[#E07A5F] text-white shadow-xs'
+              : 'bg-white border border-[#EFEBE9] text-[#5D4037] hover:bg-[#F5EFEB]'
+          }`}
+        >
+          Mystery Gacha 🎰
+        </button>
+        <button
+          onClick={() => {
+            soundEngine.playClick();
+            setActiveTab('ledger');
+          }}
+          className={`px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+            activeTab === 'ledger'
+              ? 'bg-[#E07A5F] text-white shadow-xs'
+              : 'bg-white border border-[#EFEBE9] text-[#5D4037] hover:bg-[#F5EFEB]'
+          }`}
+        >
+          Coin Ledger 📜
+        </button>
       </div>
 
       {/* Tab 1: Virtual Boutique */}
       {activeTab === 'virtual' && (
-        <BoutiqueSection
-          profile={profile}
-          inventory={inventory}
-          onPurchaseItem={onPurchaseItem}
-          onEquipItem={onEquipItem}
-        />
+        <div className="space-y-6">
+          <StreakShieldCard
+            profile={profile}
+            onBuyShield={onBuyStreakShield}
+          />
+
+          <BoutiqueSection
+            profile={profile}
+            inventory={inventory}
+            onPurchaseItem={onPurchaseItem}
+            onEquipItem={onEquipItem}
+          />
+        </div>
       )}
 
       {/* Tab 2: Real-Life Vouchers */}
@@ -92,6 +131,23 @@ export const ShopView: React.FC<ShopViewProps> = ({
           onRedeemVoucher={onRedeemVoucher}
           onDeleteVoucher={onDeleteVoucher}
           onOpenCreateModal={() => setIsVoucherModalOpen(true)}
+        />
+      )}
+
+      {/* Tab 3: Mystery Gacha */}
+      {activeTab === 'gacha' && (
+        <GachaMachine
+          profile={profile}
+          inventory={inventory}
+          onPullGacha={onPullGacha}
+        />
+      )}
+
+      {/* Tab 4: Coin Transaction Ledger */}
+      {activeTab === 'ledger' && (
+        <CoinLedger
+          profile={profile}
+          activityLogs={activityLogs}
         />
       )}
 

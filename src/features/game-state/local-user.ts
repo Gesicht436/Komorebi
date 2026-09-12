@@ -21,6 +21,7 @@ export function createLocalScholarProfile(displayName: string, email: string): P
     total_xp: 0,
     coins: 50,
     streak_count: 1,
+    streak_shields: 0,
     last_active_date: new Date().toISOString().split('T')[0],
     focus_exp: 0,
     vitality_exp: 0,

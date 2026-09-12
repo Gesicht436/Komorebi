@@ -31,6 +31,7 @@ export const DEMO_PROFILE: Profile = {
   total_xp: 643,
   coins: 140,
   streak_count: 5,
+  streak_shields: 1,
   last_active_date: new Date().toISOString().split('T')[0],
   focus_exp: 280,
   vitality_exp: 150,

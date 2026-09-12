@@ -1,7 +1,7 @@
 export type QuestType = 'daily' | 'habit' | 'milestone';
 export type QuestAttribute = 'focus' | 'vitality' | 'mindfulness' | 'creativity' | 'discipline';
 export type QuestDifficulty = 'easy' | 'medium' | 'hard' | 'epic';
-export type ItemCategory = 'hoodie' | 'headphones' | 'glasses' | 'pet' | 'theme';
+export type ItemCategory = 'hoodie' | 'headphones' | 'glasses' | 'pet' | 'theme' | 'collectible' | 'utility';
 
 export interface Profile {
   id: string;
@@ -18,6 +18,7 @@ export interface Profile {
   total_xp: number;
   coins: number;
   streak_count: number;
+  streak_shields: number;
   last_active_date: string;
   focus_exp: number;
   vitality_exp: number;
@@ -68,7 +69,15 @@ export interface Voucher {
 export interface ActivityLog {
   id: string;
   user_id: string;
-  action_type: 'quest_completed' | 'pomo_finished' | 'item_purchased' | 'voucher_redeemed' | 'streak_updated';
+  action_type:
+    | 'quest_completed'
+    | 'pomo_finished'
+    | 'item_purchased'
+    | 'voucher_redeemed'
+    | 'streak_updated'
+    | 'streak_shield_bought'
+    | 'gacha_pulled'
+    | 'streak_shield_used';
   xp_gained: number;
   coins_change: number;
   attribute?: QuestAttribute;

@@ -9,11 +9,14 @@ export default function ShopPage() {
     profile,
     inventory,
     vouchers,
+    activityLogs,
     purchaseShopItem,
     equipItem,
     createVoucher,
     redeemVoucher,
     deleteVoucher,
+    buyStreakShield,
+    pullGacha,
   } = useGame();
 
   if (!profile) return null;
@@ -24,11 +27,14 @@ export default function ShopPage() {
         profile={profile}
         inventory={inventory}
         vouchers={vouchers}
+        activityLogs={activityLogs}
         onPurchaseItem={purchaseShopItem}
         onEquipItem={equipItem}
         onCreateVoucher={createVoucher}
         onRedeemVoucher={redeemVoucher}
         onDeleteVoucher={deleteVoucher}
+        onBuyStreakShield={buyStreakShield}
+        onPullGacha={pullGacha}
       />
     </div>
   );

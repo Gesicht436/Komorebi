@@ -7,6 +7,7 @@ import {
   ShopItem,
 } from '@/types/database';
 import { TimerState, TimerMode, TimerDurations } from '../focus/types';
+import { GachaItem } from '../shop/constants/gacha-pool';
 
 export interface GameContextType {
   profile: Profile | null;
@@ -27,6 +28,8 @@ export interface GameContextType {
   createVoucher: (title: string, cost: number, icon: string) => Promise<void>;
   redeemVoucher: (voucher: Voucher) => Promise<void>;
   deleteVoucher: (voucherId: string) => Promise<void>;
+  buyStreakShield: () => Promise<void>;
+  pullGacha: () => Promise<GachaItem | null>;
   updateDisplayName: (name: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshData: () => Promise<void>;

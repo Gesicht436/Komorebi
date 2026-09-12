@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Flame,
   Coins,
+  Shield,
   RotateCcw,
   LogOut,
   Coffee,
@@ -69,6 +70,17 @@ export const TopNavStatusPills: React.FC<TopNavStatusPillsProps> = ({
         >
           <Flame className="w-4 h-4 fill-[#F57F17] animate-flame" />
           <span>{profile.streak_count || 0}d</span>
+        </div>
+      )}
+
+      {/* Streak Shield Active Pill */}
+      {profile && (profile.streak_shields || 0) > 0 && (
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-sky-50 border border-sky-200 text-sky-700 text-xs sm:text-sm font-semibold shadow-xs"
+          title={`Streak Freeze Shield: ${profile.streak_shields} active`}
+        >
+          <Shield className="w-4 h-4 fill-sky-200 text-sky-600" />
+          <span>{profile.streak_shields}</span>
         </div>
       )}
 

@@ -29,6 +29,8 @@ import {
   resetPersistedDemoState,
 } from '@/features/game-state/demo-storage';
 import { GameContextType } from '@/features/game-state/types';
+import { STREAK_SHIELD_CONFIG } from '@/features/shop/constants/streak-shield';
+import { GACHA_PULL_COST, GachaItem, drawGachaItem } from '@/features/shop/constants/gacha-pool';
 
 export type { TimerMode, TimerDurations, TimerState };
 
@@ -117,6 +119,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           total_xp: 0,
           coins: 50,
           streak_count: 1,
+          streak_shields: 0,
           last_active_date: new Date().toISOString().split('T')[0],
           focus_exp: 0,
           vitality_exp: 0,
@@ -126,13 +129,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         const { data: created } = await supabase.from('profiles').insert(initialProfile).select().single();
         setProfile(created as Profile);
+      } else {
         const today = new Date().toISOString().split('T')[0];
-        const streakResult = calculateStreakUpdate(profileData.last_active_date);
-        const newStreak = streakResult.streakIncremented ? (profileData.streak_count || 0) + 1 : profileData.streak_count;
-        if (streakResult.streakIncremented || profileData.last_active_date !== today) {
-          await supabase.from('profiles').update({ streak_count: newStreak, last_active_date: today }).eq('id', user.id);
-          profileData.streak_count = newStreak;
+        const streakResult = calculateStreakUpdate(
+          profileData.last_active_date,
+          profileData.streak_count,
+          profileData.streak_shields
+        );
+        const updates: Partial<Profile> = {};
+        if (streakResult.newStreak !== profileData.streak_count) {
+          updates.streak_count = streakResult.newStreak;
+          profileData.streak_count = streakResult.newStreak;
+        }
+        if (streakResult.remainingShields !== profileData.streak_shields) {
+          updates.streak_shields = streakResult.remainingShields;
+          profileData.streak_shields = streakResult.remainingShields;
+        }
+        if (profileData.last_active_date !== today) {
+          updates.last_active_date = today;
           profileData.last_active_date = today;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('profiles').update(updates).eq('id', user.id);
+          if (streakResult.consumedShield) {
+            await supabase.from('activity_logs').insert({
+              user_id: user.id,
+              action_type: 'streak_shield_used',
+              xp_gained: 0,
+              coins_change: 0,
+              metadata: { preserved_streak: streakResult.newStreak, remaining_shields: streakResult.remainingShields },
+            });
+          }
         }
         setProfile(profileData as Profile);
       }
@@ -587,6 +615,155 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // BUY STREAK SHIELD
+  const buyStreakShield = async () => {
+    if (!profile) return;
+    if (profile.coins < STREAK_SHIELD_CONFIG.cost) return;
+    if ((profile.streak_shields || 0) >= STREAK_SHIELD_CONFIG.maxShields) return;
+
+    soundEngine.playClick();
+    const updatedCoins = profile.coins - STREAK_SHIELD_CONFIG.cost;
+    const updatedShields = (profile.streak_shields || 0) + 1;
+    const updatedProfile: Profile = {
+      ...profile,
+      coins: updatedCoins,
+      streak_shields: updatedShields,
+    };
+    setProfile(updatedProfile);
+
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user_id: profile.id,
+      action_type: 'streak_shield_bought',
+      xp_gained: 0,
+      coins_change: -STREAK_SHIELD_CONFIG.cost,
+      attribute: undefined,
+      metadata: { shield_count: updatedShields },
+      created_at: new Date().toISOString(),
+    };
+    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+    setActivityLogs(updatedLogs);
+
+    if (isDemoMode) {
+      savePersistedDemoState({ profile: updatedProfile, activityLogs: updatedLogs });
+      return;
+    }
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({ coins: updatedCoins, streak_shields: updatedShields })
+        .eq('id', profile.id);
+
+      await supabase.from('activity_logs').insert({
+        user_id: profile.id,
+        action_type: 'streak_shield_bought',
+        xp_gained: 0,
+        coins_change: -STREAK_SHIELD_CONFIG.cost,
+        attribute: null,
+        metadata: { shield_count: updatedShields },
+      });
+    } catch (err) {
+      console.error('Error buying streak shield:', err);
+    }
+  };
+
+  // PULL GACHA
+  const pullGacha = async (): Promise<GachaItem | null> => {
+    if (!profile || profile.coins < GACHA_PULL_COST) return null;
+
+    const wonItem = drawGachaItem();
+    const isJackpot = wonItem.rarity === 'jackpot';
+    const bonusCoins = wonItem.bonusCoins || 0;
+    const coinDelta = bonusCoins - GACHA_PULL_COST;
+    const updatedCoins = profile.coins + coinDelta;
+
+    if (isJackpot || wonItem.rarity === 'legendary') {
+      soundEngine.playLevelUp();
+    } else {
+      soundEngine.playQuestComplete();
+    }
+
+    const updatedProfile: Profile = {
+      ...profile,
+      coins: updatedCoins,
+    };
+    setProfile(updatedProfile);
+
+    let updatedInventory = inventory;
+    const alreadyOwned = inventory.some((item) => item.item_id === wonItem.id);
+    if (!isJackpot && !alreadyOwned) {
+      const newItem: InventoryItem = {
+        id: `inv-${Date.now()}`,
+        user_id: profile.id,
+        item_id: wonItem.id,
+        item_name: wonItem.name,
+        category: 'collectible',
+        acquired_at: new Date().toISOString(),
+      };
+      updatedInventory = [newItem, ...inventory];
+      setInventory(updatedInventory);
+    }
+
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user_id: profile.id,
+      action_type: 'gacha_pulled',
+      xp_gained: 0,
+      coins_change: coinDelta,
+      attribute: undefined,
+      metadata: {
+        item_id: wonItem.id,
+        item_name: wonItem.name,
+        rarity: wonItem.rarity,
+        bonus_coins: bonusCoins,
+      },
+      created_at: new Date().toISOString(),
+    };
+    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+    setActivityLogs(updatedLogs);
+
+    if (isDemoMode) {
+      savePersistedDemoState({
+        profile: updatedProfile,
+        inventory: updatedInventory,
+        activityLogs: updatedLogs,
+      });
+      return wonItem;
+    }
+
+    try {
+      await supabase.from('profiles').update({ coins: updatedCoins }).eq('id', profile.id);
+
+      if (!isJackpot && !alreadyOwned) {
+        await supabase.from('inventory').insert({
+          user_id: profile.id,
+          item_id: wonItem.id,
+          item_name: wonItem.name,
+          category: 'collectible',
+        });
+      }
+
+      await supabase.from('activity_logs').insert({
+        user_id: profile.id,
+        action_type: 'gacha_pulled',
+        xp_gained: 0,
+        coins_change: coinDelta,
+        attribute: null,
+        metadata: {
+          item_id: wonItem.id,
+          item_name: wonItem.name,
+          rarity: wonItem.rarity,
+          bonus_coins: bonusCoins,
+        },
+      });
+    } catch (err) {
+      console.error('Error recording gacha pull:', err);
+    }
+
+    return wonItem;
+  };
+
   // UPDATE DISPLAY NAME
   const updateDisplayName = async (name: string) => {
     if (!profile) return;
@@ -638,6 +815,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createVoucher,
         redeemVoucher,
         deleteVoucher,
+        buyStreakShield,
+        pullGacha,
         updateDisplayName,
         signOut,
         refreshData: fetchData,

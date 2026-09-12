@@ -71,16 +71,28 @@ export function processXpGain(
   };
 }
 
-export function calculateStreakUpdate(lastActiveDateStr: string | null): {
+export function calculateStreakUpdate(
+  lastActiveDateStr: string | null,
+  currentStreak: number = 0,
+  currentShields: number = 0
+): {
   newStreak: number;
   streakIncremented: boolean;
+  consumedShield: boolean;
+  remainingShields: number;
   todayStr: string;
 } {
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
   if (!lastActiveDateStr) {
-    return { newStreak: 1, streakIncremented: true, todayStr };
+    return {
+      newStreak: 1,
+      streakIncremented: true,
+      consumedShield: false,
+      remainingShields: currentShields,
+      todayStr,
+    };
   }
 
   const lastActive = new Date(lastActiveDateStr);
@@ -89,13 +101,41 @@ export function calculateStreakUpdate(lastActiveDateStr: string | null): {
 
   if (lastActiveDateStr === todayStr) {
     // Already active today
-    return { newStreak: 0, streakIncremented: false, todayStr };
+    return {
+      newStreak: currentStreak || 1,
+      streakIncremented: false,
+      consumedShield: false,
+      remainingShields: currentShields,
+      todayStr,
+    };
   } else if (diffDays === 1) {
     // Consecutive day
-    return { newStreak: 1, streakIncremented: true, todayStr };
+    return {
+      newStreak: (currentStreak || 0) + 1,
+      streakIncremented: true,
+      consumedShield: false,
+      remainingShields: currentShields,
+      todayStr,
+    };
   } else {
+    // A day was missed! Check for streak shield
+    if (currentShields > 0) {
+      return {
+        newStreak: Math.max(1, currentStreak),
+        streakIncremented: false,
+        consumedShield: true,
+        remainingShields: currentShields - 1,
+        todayStr,
+      };
+    }
     // Streak broken, reset to 1
-    return { newStreak: 1, streakIncremented: true, todayStr };
+    return {
+      newStreak: 1,
+      streakIncremented: true,
+      consumedShield: false,
+      remainingShields: 0,
+      todayStr,
+    };
   }
 }
 
