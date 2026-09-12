@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Flame, Coins, Trophy, Edit3, Check, KeyRound } from 'lucide-react';
 import { Profile } from '@/types/database';
 import { getTitleForLevel, getXpRequiredForLevel } from '@/lib/game/engine';
+import { getCharacterEvolution } from '@/lib/game/evolution';
 import { AvatarDisplay } from '@/features/avatar';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { ChangePasswordModal } from '@/features/auth';
@@ -29,8 +30,19 @@ export const ProfileHeroCard: React.FC<ProfileHeroCardProps> = ({
     Math.max(0, Math.round((profile.current_xp / xpRequired) * 100))
   );
 
+  const evolution = getCharacterEvolution({
+    focus_exp: profile.focus_exp,
+    vitality_exp: profile.vitality_exp,
+    mindfulness_exp: profile.mindfulness_exp,
+    discipline_exp: profile.discipline_exp,
+    creativity_exp: profile.creativity_exp,
+  });
+
   const handleSaveName = async () => {
-    if (!nameInput.trim() || isSaving) return;
+    if (!nameInput.trim() || nameInput.trim() === profile.display_name) {
+      setIsEditingName(false);
+      return;
+    }
     setIsSaving(true);
     soundEngine.playClick();
     try {
@@ -52,6 +64,11 @@ export const ProfileHeroCard: React.FC<ProfileHeroCardProps> = ({
             equippedGlasses={profile.equipped_glasses}
             equippedPet={profile.equipped_pet}
             level={profile.level}
+            vitalityTier={evolution.vitality.tier}
+            focusTier={evolution.focus.tier}
+            zenTier={evolution.zen.tier}
+            archetypeTitle={evolution.archetypeTitle}
+            badgeColor={evolution.badgeColor}
             className="max-w-xs"
           />
         </div>

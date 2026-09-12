@@ -120,10 +120,14 @@ export default function LandingPage() {
                 equippedPet="calico_cat"
                 level={3}
                 isStudying={true}
+                vitalityTier={1}
+                focusTier={2}
+                zenTier={1}
+                archetypeTitle="Stage III • Battle Scholar"
               />
               <div className="mt-3 text-center">
-                <div className="text-xs font-bold text-[#3E2723]">Level 3 Scholar</div>
-                <div className="text-[11px] text-[#8D6E63]">Equipped: Matcha Hoodie, Cat Headset & Calico Cat</div>
+                <div className="text-xs font-bold text-[#3E2723]">Level 3 Scholar • Battle Scholar</div>
+                <div className="text-[11px] text-[#8D6E63]">Evolved: Athletic Frame, Pulsing Intellect Aura & Calico Cat</div>
               </div>
             </div>
           </div>
@@ -140,14 +144,24 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white border border-[#EFEBE9] rounded-3xl p-6 shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-[#FBE9E7] text-[#E07A5F] flex items-center justify-center mb-4">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h3 className="text-lg font-bold text-[#3E2723]">Character Evolution</h3>
+              <p className="text-xs text-[#8D6E63] mt-2 leading-relaxed">
+                Watch your character transform: gym activity builds muscular physique, study manifests a cosmic intellect aura, and discipline unlocks serene monk halos.
+              </p>
+            </div>
+
             <div className="bg-white border border-[#EFEBE9] rounded-3xl p-6 shadow-xs">
               <div className="w-10 h-10 rounded-2xl bg-[#E8F5E9] text-[#2E7D32] flex items-center justify-center mb-4">
                 <Brain className="w-5 h-5" />
               </div>
               <h3 className="text-lg font-bold text-[#3E2723]">Non-Linear Leveling</h3>
               <p className="text-xs text-[#8D6E63] mt-2 leading-relaxed">
-                XP requirements scale exponentially (XP = 100 × L^1.6). Earn attributes across Focus, Vitality, Mindfulness, Creativity, and Discipline.
+                XP scales exponentially (XP = 100 × L^1.6). Level 5 core life attributes across Focus, Vitality, Mindfulness, Creativity, and Discipline.
               </p>
             </div>
 
@@ -155,9 +169,9 @@ export default function LandingPage() {
               <div className="w-10 h-10 rounded-2xl bg-[#EDE7F6] text-[#7E57C2] flex items-center justify-center mb-4">
                 <Timer className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-[#3E2723]">Pomodoro with Lo-Fi Audio</h3>
+              <h3 className="text-lg font-bold text-[#3E2723]">Pomodoro & Lo-Fi Audio</h3>
               <p className="text-xs text-[#8D6E63] mt-2 leading-relaxed">
-                Built-in 25/5 study timer generating procedural pink noise rain, vinyl crackle, and soft tactile chimes with zero network lag.
+                Auto-pausing deep study timer with real-time Web Audio lo-fi Rhodes chords, vinyl crackle, and soothing rain synthesis.
               </p>
             </div>
 
@@ -165,9 +179,9 @@ export default function LandingPage() {
               <div className="w-10 h-10 rounded-2xl bg-[#FFF3E0] text-[#E65100] flex items-center justify-center mb-4">
                 <ShoppingBag className="w-5 h-5" />
               </div>
-              <h3 className="text-lg font-bold text-[#3E2723]">Dual Rewards Economy</h3>
+              <h3 className="text-lg font-bold text-[#3E2723]">Expanded Reward Economy</h3>
               <p className="text-xs text-[#8D6E63] mt-2 leading-relaxed">
-                Spend study coins on virtual pet companions and cozy hoodies, or redeem custom self-reward vouchers like boba breaks and gaming hours.
+                Streak Freeze Shields, a 30 🪙 Mystery Capsule Gacha with collectible desk artifacts, cozy boutique cosmetics, and real-life vouchers.
               </p>
             </div>
           </div>

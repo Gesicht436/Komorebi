@@ -1,3 +1,5 @@
+import { EvolutionTier } from '@/lib/game/evolution';
+
 export type TimeOfDay = 'morning' | 'day' | 'dusk' | 'night';
 
 export interface AvatarDisplayProps {
@@ -9,6 +11,14 @@ export interface AvatarDisplayProps {
   level?: number;
   timeOfDay?: 'auto' | TimeOfDay;
   className?: string;
+
+  // Character Evolution System props
+  vitalityTier?: EvolutionTier;
+  focusTier?: EvolutionTier;
+  zenTier?: EvolutionTier;
+  archetypeTitle?: string;
+  badgeColor?: string;
+  showEvolutionBadge?: boolean;
 }
 
 export const HOODIE_COLORS: Record<string, { main: string; shade: string; trim: string }> = {

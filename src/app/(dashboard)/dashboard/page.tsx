@@ -16,6 +16,7 @@ import { useGame } from '@/context/GameContext';
 import { AvatarDisplay } from '@/components/avatar/AvatarDisplay';
 import { QuestCard } from '@/components/quests/QuestCard';
 import { getTitleForLevel, getXpRequiredForLevel } from '@/lib/game/engine';
+import { getCharacterEvolution } from '@/lib/game/evolution';
 import { soundEngine } from '@/lib/audio/sound-engine';
 
 export default function StudyRoomPage() {
@@ -36,6 +37,14 @@ export default function StudyRoomPage() {
     100,
     Math.max(0, Math.round((profile.current_xp / xpRequired) * 100))
   );
+
+  const evolution = getCharacterEvolution({
+    focus_exp: profile.focus_exp,
+    vitality_exp: profile.vitality_exp,
+    mindfulness_exp: profile.mindfulness_exp,
+    discipline_exp: profile.discipline_exp,
+    creativity_exp: profile.creativity_exp,
+  });
 
   const pendingQuests = quests.filter((q) => !q.is_completed).slice(0, 4);
   const completedToday = quests.filter((q) => q.is_completed).length;
@@ -58,6 +67,11 @@ export default function StudyRoomPage() {
                 equippedPet={profile.equipped_pet}
                 level={profile.level}
                 isStudying={isStudying}
+                vitalityTier={evolution.vitality.tier}
+                focusTier={evolution.focus.tier}
+                zenTier={evolution.zen.tier}
+                archetypeTitle={evolution.archetypeTitle}
+                badgeColor={evolution.badgeColor}
               />
             </div>
           </div>
@@ -65,9 +79,14 @@ export default function StudyRoomPage() {
           {/* Scholar Progression Sheet */}
           <div className="lg:col-span-6 space-y-5">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FBE9E7] text-[#E07A5F] text-xs font-bold uppercase tracking-wider">
-                <Sparkles className="w-3.5 h-3.5" />
-                Level {profile.level} • {title}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FBE9E7] text-[#E07A5F] text-xs font-bold uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Level {profile.level} • {title}
+                </div>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${evolution.badgeColor}`}>
+                  {evolution.archetypeTitle}
+                </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3E2723]">
                 Good day, {profile.display_name}

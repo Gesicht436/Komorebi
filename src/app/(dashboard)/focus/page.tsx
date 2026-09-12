@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import { PomodoroTimer } from '@/components/focus/PomodoroTimer';
 import { AvatarDisplay } from '@/components/avatar/AvatarDisplay';
+import { getCharacterEvolution } from '@/lib/game/evolution';
 
 export default function FocusPage() {
   const { profile, isStudying, onEnterFocusPage, onLeaveFocusPage } = useGame();
@@ -17,6 +18,14 @@ export default function FocusPage() {
   }, [onEnterFocusPage, onLeaveFocusPage]);
 
   if (!profile) return null;
+
+  const evolution = getCharacterEvolution({
+    focus_exp: profile.focus_exp,
+    vitality_exp: profile.vitality_exp,
+    mindfulness_exp: profile.mindfulness_exp,
+    discipline_exp: profile.discipline_exp,
+    creativity_exp: profile.creativity_exp,
+  });
 
   return (
     <div className="space-y-8">
@@ -41,6 +50,11 @@ export default function FocusPage() {
               equippedPet={profile.equipped_pet}
               level={profile.level}
               isStudying={isStudying}
+              vitalityTier={evolution.vitality.tier}
+              focusTier={evolution.focus.tier}
+              zenTier={evolution.zen.tier}
+              archetypeTitle={evolution.archetypeTitle}
+              badgeColor={evolution.badgeColor}
             />
             <div className="text-center text-xs font-semibold text-[#8D6E63] mt-2">
               {isStudying ? '✨ Concentrating deeply...' : 'Take a breath and press Start'}

@@ -6,6 +6,8 @@ import { AvatarWindowSky } from './AvatarWindowSky';
 import { AvatarDeskEnvironment } from './AvatarDeskEnvironment';
 import { AvatarApparel } from './AvatarApparel';
 import { AvatarPet } from './AvatarPet';
+import { AvatarIntellectAura } from './AvatarIntellectAura';
+import { AvatarZenSerenity } from './AvatarZenSerenity';
 
 export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   equippedHoodie = 'knit_sweater',
@@ -16,6 +18,12 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   level = 1,
   timeOfDay = 'auto',
   className = '',
+  vitalityTier = 0,
+  focusTier = 0,
+  zenTier = 0,
+  archetypeTitle,
+  badgeColor = 'bg-stone-100 text-stone-700 border-stone-300',
+  showEvolutionBadge = true,
 }) => {
   const [activeTime, setActiveTime] = useState<TimeOfDay>(() => {
     if (timeOfDay !== 'auto') return timeOfDay;
@@ -52,7 +60,7 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         role="img"
-        aria-label="Komorebi Anime Study Avatar and Companion"
+        aria-label="Komorebi Anime Study Avatar and Evolution Companion"
       >
         <defs>
           {/* Warm Study Lamp Glow */}
@@ -87,6 +95,34 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
             <stop offset="100%" stopColor="#3A506B" />
           </linearGradient>
 
+          {/* INTELLECT AURA GRADIENTS */}
+          <radialGradient id="intellectGlowSoft" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#93C5FD" stopOpacity="0.8" />
+            <stop offset="60%" stopColor="#60A5FA" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+          </radialGradient>
+
+          <radialGradient id="intellectGlowMedium" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#BFDBFE" stopOpacity="0.85" />
+            <stop offset="50%" stopColor="#60A5FA" stopOpacity="0.45" />
+            <stop offset="85%" stopColor="#818CF8" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
+          </radialGradient>
+
+          <radialGradient id="astralNovaGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#E0E7FF" stopOpacity="0.9" />
+            <stop offset="40%" stopColor="#818CF8" stopOpacity="0.5" />
+            <stop offset="75%" stopColor="#C084FC" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#4F46E5" stopOpacity="0" />
+          </radialGradient>
+
+          {/* ZEN HALO GRADIENT */}
+          <radialGradient id="zenHaloGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#FEF08A" stopOpacity="0.9" />
+            <stop offset="70%" stopColor="#FDE047" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+          </radialGradient>
+
           {/* Steam Blur */}
           <filter id="softBlur">
             <feGaussianBlur stdDeviation="1.5" />
@@ -99,24 +135,59 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
         {/* 2. Room, Desk & Lamp Environment */}
         <AvatarDeskEnvironment activeTime={activeTime} />
 
-        {/* 3. Character Body, Apparel & Accessories */}
+        {/* 3. Character Evolution: Intellect Aura (behind character) */}
+        <AvatarIntellectAura tier={focusTier} isStudying={isStudying} />
+
+        {/* 4. Character Evolution: Zen Serenity (Halo & Peace waves) */}
+        <AvatarZenSerenity tier={zenTier} />
+
+        {/* 5. Character Body, Apparel & Muscular Evolution */}
         <AvatarApparel
           equippedHoodie={equippedHoodie}
           equippedHeadphones={equippedHeadphones}
           equippedGlasses={equippedGlasses}
           isStudying={isStudying}
+          vitalityTier={vitalityTier}
+          zenTier={zenTier}
+          focusTier={focusTier}
         />
 
-        {/* 4. Desk Companion Pet */}
+        {/* 6. Desk Companion Pet */}
         <AvatarPet equippedPet={equippedPet} />
 
-        {/* 5. Level Badge */}
+        {/* 7. Level Badge */}
         <g transform="translate(35, 35)">
           <rect width="64" height="24" rx="12" fill="#FFFBF5" stroke="#EFEBE9" strokeWidth="2" />
           <text x="32" y="16" textAnchor="middle" fill="#5D4037" fontSize="11" fontWeight="bold">
             LVL {level}
           </text>
         </g>
+
+        {/* 8. Archetype Evolution Pill (if active and high tier) */}
+        {showEvolutionBadge && archetypeTitle && (
+          <g transform="translate(245, 35)">
+            <rect
+              width="120"
+              height="24"
+              rx="12"
+              fill="#FFFBF5"
+              stroke="#FFE0B2"
+              strokeWidth="1.5"
+              className="drop-shadow-xs"
+            />
+            <text
+              x="60"
+              y="16"
+              textAnchor="middle"
+              fill="#D97706"
+              fontSize="9"
+              fontWeight="bold"
+              letterSpacing="0.2"
+            >
+              {archetypeTitle.split('•')[1]?.trim() || archetypeTitle}
+            </text>
+          </g>
+        )}
       </svg>
     </div>
   );

@@ -3,6 +3,7 @@
 import React from 'react';
 import { ProfileViewProps } from '../types';
 import { ProfileHeroCard } from './ProfileHeroCard';
+import { CharacterEvolutionCard } from './CharacterEvolutionCard';
 import { ProfileAttributes } from './ProfileAttributes';
 import { ActivityHeatmap } from './ActivityHeatmap';
 import { ActivityChronicle } from './ActivityChronicle';
@@ -20,13 +21,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         onUpdateDisplayName={onUpdateDisplayName}
       />
 
-      {/* 2. 5 Life RPG Attributes Breakdown */}
+      {/* 2. Character Evolution System (Visual Identity & Dynamic Transformations) */}
+      <CharacterEvolutionCard profile={profile} />
+
+      {/* 3. 5 Life RPG Attributes Breakdown */}
       <ProfileAttributes profile={profile} />
 
-      {/* 3. 30-Day Activity & Consistency Heatmap */}
+      {/* 4. 30-Day Activity & Consistency Heatmap */}
       <ActivityHeatmap activityLogs={activityLogs} />
 
-      {/* 4. Activity Logs History Timeline */}
+      {/* 5. Activity Logs History Timeline */}
       <ActivityChronicle activityLogs={activityLogs} />
     </div>
   );
