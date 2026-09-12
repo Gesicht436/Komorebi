@@ -11,6 +11,7 @@ import {
   VolumeX,
   CloudRain,
   Disc,
+  Music,
   Home,
   CheckSquare,
   Timer,
@@ -33,6 +34,7 @@ export const TopNav: React.FC<TopNavProps> = ({ profile, onSignOut }) => {
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [isRainActive, setIsRainActive] = useState(soundEngine.getRainState());
   const [isVinylActive, setIsVinylActive] = useState(soundEngine.getVinylState());
+  const [isChordsActive, setIsChordsActive] = useState(soundEngine.getLofiChordsState());
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleToggleMute = () => {
@@ -51,6 +53,12 @@ export const TopNav: React.FC<TopNavProps> = ({ profile, onSignOut }) => {
     soundEngine.playClick();
     const active = soundEngine.toggleVinyl();
     setIsVinylActive(active);
+  };
+
+  const handleToggleChords = () => {
+    soundEngine.playClick();
+    const active = soundEngine.toggleLofiChords();
+    setIsChordsActive(active);
   };
 
   const navLinks = [
@@ -155,6 +163,17 @@ export const TopNav: React.FC<TopNavProps> = ({ profile, onSignOut }) => {
               <Disc className={`w-4 h-4 ${isVinylActive ? 'animate-spin' : ''}`} />
             </button>
             <button
+              onClick={handleToggleChords}
+              title={isChordsActive ? 'Stop Lo-Fi Beats' : 'Play Lo-Fi Rhodes Piano Beats'}
+              className={`p-1.5 rounded-lg transition-all ${
+                isChordsActive
+                  ? 'bg-[#FFF3E0] text-[#E65100] ring-1 ring-[#E65100]'
+                  : 'text-[#8D6E63] hover:bg-[#F5EFEB]'
+              }`}
+            >
+              <Music className={`w-4 h-4 ${isChordsActive ? 'animate-bounce' : ''}`} />
+            </button>
+            <button
               onClick={handleToggleMute}
               title={isMuted ? 'Unmute Sound Effects' : 'Mute Sound Effects'}
               className="p-1.5 rounded-lg text-[#8D6E63] hover:bg-[#F5EFEB] transition-all"
@@ -227,6 +246,15 @@ export const TopNav: React.FC<TopNavProps> = ({ profile, onSignOut }) => {
             >
               <Disc className="w-4 h-4" />
               <span>Vinyl</span>
+            </button>
+            <button
+              onClick={handleToggleChords}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg ${
+                isChordsActive ? 'bg-[#FFF3E0] text-[#E65100]' : 'text-[#8D6E63]'
+              }`}
+            >
+              <Music className="w-4 h-4" />
+              <span>Beats</span>
             </button>
             <button
               onClick={handleToggleMute}

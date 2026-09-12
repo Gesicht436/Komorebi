@@ -18,6 +18,121 @@ import {
 } from '@/lib/game/engine';
 import { LevelUpModal } from '@/components/modals/LevelUpModal';
 
+const DEMO_PROFILE: Profile = {
+  id: 'demo-judge-id',
+  email: 'judge@hackathon.dev',
+  display_name: 'Judge Satsuki (Demo)',
+  avatar_url: 'avatar_default',
+  equipped_hoodie: 'matcha_hoodie',
+  equipped_headphones: 'cat_ear_headset',
+  equipped_glasses: 'wireframe_rounds',
+  equipped_pet: 'calico_cat',
+  equipped_theme: 'lofi_day',
+  level: 3,
+  current_xp: 240,
+  total_xp: 643,
+  coins: 140,
+  streak_count: 5,
+  last_active_date: new Date().toISOString().split('T')[0],
+  focus_exp: 280,
+  vitality_exp: 150,
+  mindfulness_exp: 90,
+  creativity_exp: 70,
+  discipline_exp: 120,
+  created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+const DEMO_QUESTS: Quest[] = [
+  {
+    id: 'demo-q1',
+    user_id: 'demo-judge-id',
+    title: 'Audit Komorebi RPG Progression Engine',
+    description: 'Verify non-linear leveling formula and streak multipliers',
+    type: 'daily',
+    attribute: 'focus',
+    difficulty: 'hard',
+    xp_reward: 70,
+    coin_reward: 25,
+    is_completed: false,
+    completed_at: null,
+    due_date: null,
+    streak_count: 0,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'demo-q2',
+    user_id: 'demo-judge-id',
+    title: '25-Min Focus Sprint with Ambient Rain',
+    description: 'Test the Pomodoro study chamber with lo-fi vinyl audio',
+    type: 'daily',
+    attribute: 'mindfulness',
+    difficulty: 'medium',
+    xp_reward: 35,
+    coin_reward: 12,
+    is_completed: false,
+    completed_at: null,
+    due_date: null,
+    streak_count: 0,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'demo-q3',
+    user_id: 'demo-judge-id',
+    title: 'Hydration & Posture Reset',
+    description: 'Drink warm water and stretch desk shoulders',
+    type: 'habit',
+    attribute: 'vitality',
+    difficulty: 'easy',
+    xp_reward: 15,
+    coin_reward: 5,
+    is_completed: false,
+    completed_at: null,
+    due_date: null,
+    streak_count: 3,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: 'demo-q4',
+    user_id: 'demo-judge-id',
+    title: 'Unlock Shiba Inu Companion in Boutique',
+    description: 'Save 130 coins to purchase Hachi the Shiba Inu',
+    type: 'milestone',
+    attribute: 'discipline',
+    difficulty: 'epic',
+    xp_reward: 150,
+    coin_reward: 60,
+    is_completed: false,
+    completed_at: null,
+    due_date: null,
+    streak_count: 0,
+    created_at: new Date().toISOString(),
+  },
+];
+
+const DEMO_INVENTORY: InventoryItem[] = [
+  { id: 'demo-inv1', user_id: 'demo-judge-id', item_id: 'knit_sweater', item_name: 'Cozy Knit Sweater', category: 'hoodie', acquired_at: new Date().toISOString() },
+  { id: 'demo-inv2', user_id: 'demo-judge-id', item_id: 'matcha_hoodie', item_name: 'Matcha Oversized Hoodie', category: 'hoodie', acquired_at: new Date().toISOString() },
+  { id: 'demo-inv3', user_id: 'demo-judge-id', item_id: 'cat_ear_headset', item_name: 'Lo-Fi Cat-Ear Headset', category: 'headphones', acquired_at: new Date().toISOString() },
+  { id: 'demo-inv4', user_id: 'demo-judge-id', item_id: 'wireframe_rounds', item_name: 'Wireframe Round Glasses', category: 'glasses', acquired_at: new Date().toISOString() },
+  { id: 'demo-inv5', user_id: 'demo-judge-id', item_id: 'calico_cat', item_name: 'Mochi the Calico Cat', category: 'pet', acquired_at: new Date().toISOString() },
+  { id: 'demo-inv6', user_id: 'demo-judge-id', item_id: 'lofi_day', item_name: 'Morning Sunlight Tavern', category: 'theme', acquired_at: new Date().toISOString() },
+];
+
+const DEMO_VOUCHERS: Voucher[] = [
+  { id: 'demo-v1', user_id: 'demo-judge-id', title: '30-Minute Gaming Break', cost: 40, icon: 'gift', times_redeemed: 2, created_at: new Date().toISOString() },
+  { id: 'demo-v2', user_id: 'demo-judge-id', title: 'Boba Milk Tea or Coffee Treat', cost: 80, icon: 'gift', times_redeemed: 1, created_at: new Date().toISOString() },
+  { id: 'demo-v3', user_id: 'demo-judge-id', title: 'Guilt-Free Movie Night', cost: 150, icon: 'gift', times_redeemed: 0, created_at: new Date().toISOString() },
+];
+
+const DEMO_LOGS: ActivityLog[] = [
+  { id: 'log-1', user_id: 'demo-judge-id', action_type: 'quest_completed', xp_gained: 70, coins_change: 25, attribute: 'focus', created_at: new Date().toISOString() },
+  { id: 'log-2', user_id: 'demo-judge-id', action_type: 'pomo_finished', xp_gained: 35, coins_change: 12, attribute: 'focus', created_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'log-3', user_id: 'demo-judge-id', action_type: 'quest_completed', xp_gained: 35, coins_change: 12, attribute: 'vitality', created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 'log-4', user_id: 'demo-judge-id', action_type: 'quest_completed', xp_gained: 15, coins_change: 5, attribute: 'discipline', created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 'log-5', user_id: 'demo-judge-id', action_type: 'item_purchased', xp_gained: 0, coins_change: -75, attribute: 'mindfulness', created_at: new Date(Date.now() - 4 * 86400000).toISOString() },
+];
+
 interface GameContextType {
   profile: Profile | null;
   quests: Quest[];
@@ -40,6 +155,8 @@ interface GameContextType {
   updateDisplayName: (name: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshData: () => Promise<void>;
+  isDemoMode: boolean;
+  loadDemoMode: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -55,6 +172,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStudying, setIsStudying] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Level Up Modal State
   const [levelUpModal, setLevelUpModal] = useState<{ isOpen: boolean; newLevel: number }>({
@@ -62,7 +180,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     newLevel: 1,
   });
 
+  const loadDemoState = useCallback(() => {
+    setIsDemoMode(true);
+    if (typeof document !== 'undefined') {
+      document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
+    }
+    setProfile(DEMO_PROFILE);
+    setQuests(DEMO_QUESTS);
+    setInventory(DEMO_INVENTORY);
+    setVouchers(DEMO_VOUCHERS);
+    setActivityLogs(DEMO_LOGS);
+    setIsLoading(false);
+  }, []);
+
+  const loadDemoMode = useCallback(() => {
+    loadDemoState();
+    router.push('/dashboard');
+  }, [loadDemoState, router]);
+
   const fetchData = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.cookie.includes('komorebi_demo=true')) {
+      loadDemoState();
+      return;
+    }
+
     try {
       const {
         data: { user },
@@ -82,7 +223,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (profileErr || !profileData) {
-        // Fallback create if trigger had delay
         const initialProfile: Partial<Profile> = {
           id: user.id,
           email: user.email || '',
@@ -147,7 +287,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, loadDemoState]);
 
   useEffect(() => {
     fetchData();
@@ -201,14 +341,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
     }
 
+    if (isDemoMode) {
+      const newLog: ActivityLog = {
+        id: `log-${Date.now()}`,
+        user_id: profile.id,
+        action_type: 'quest_completed',
+        xp_gained: quest.xp_reward,
+        coins_change: quest.coin_reward,
+        attribute: quest.attribute,
+        metadata: { quest_title: quest.title },
+        created_at: new Date().toISOString(),
+      };
+      setActivityLogs((prev) => [newLog, ...prev.slice(0, 19)]);
+      return;
+    }
+
     try {
-      // 1. Update Quest in DB
       await supabase
         .from('quests')
         .update({ is_completed: true, completed_at: new Date().toISOString() })
         .eq('id', questId);
 
-      // 2. Update Profile in DB
       await supabase
         .from('profiles')
         .update({
@@ -222,7 +375,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('id', profile.id);
 
-      // 3. Insert Activity Log
       const { data: newLog } = await supabase
         .from('activity_logs')
         .insert({
@@ -251,8 +403,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createOrUpdateQuest = async (questData: Partial<Quest>) => {
     if (!profile) return;
 
+    if (isDemoMode) {
+      if (questData.id) {
+        setQuests((prev) =>
+          prev.map((q) => (q.id === questData.id ? ({ ...q, ...questData } as Quest) : q))
+        );
+      } else {
+        const newDemoQuest: Quest = {
+          id: `demo-q-${Date.now()}`,
+          user_id: profile.id,
+          title: questData.title || '',
+          description: questData.description || '',
+          type: questData.type || 'daily',
+          attribute: questData.attribute || 'focus',
+          difficulty: questData.difficulty || 'medium',
+          xp_reward: questData.xp_reward || 35,
+          coin_reward: questData.coin_reward || 12,
+          is_completed: false,
+          completed_at: null,
+          due_date: null,
+          streak_count: 0,
+          created_at: new Date().toISOString(),
+        };
+        setQuests((prev) => [newDemoQuest, ...prev]);
+      }
+      return;
+    }
+
     if (questData.id) {
-      // Update existing
       const { data, error } = await supabase
         .from('quests')
         .update(questData)
@@ -264,7 +442,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setQuests((prev) => prev.map((q) => (q.id === data.id ? (data as Quest) : q)));
       }
     } else {
-      // Create new
       const newQuest = {
         ...questData,
         user_id: profile.id,
@@ -286,7 +463,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // DELETE QUEST
   const deleteQuest = async (questId: string) => {
     setQuests((prev) => prev.filter((q) => q.id !== questId));
-    await supabase.from('quests').delete().eq('id', questId);
+    if (!isDemoMode) {
+      await supabase.from('quests').delete().eq('id', questId);
+    }
   };
 
   // UPDATE HABIT (+ / -)
@@ -301,7 +480,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     if (delta > 0) {
-      // Award XP & coin for habit repetition
       const xp = 15;
       const coins = 5;
       const levelResult = processXpGain(profile.level, profile.current_xp, xp);
@@ -319,19 +497,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
       }
 
-      await supabase
-        .from('profiles')
-        .update({
-          level: updatedProfile.level,
-          current_xp: updatedProfile.current_xp,
-          total_xp: updatedProfile.total_xp,
-          coins: updatedProfile.coins,
-          discipline_exp: updatedProfile.discipline_exp,
-        })
-        .eq('id', profile.id);
+      if (!isDemoMode) {
+        await supabase
+          .from('profiles')
+          .update({
+            level: updatedProfile.level,
+            current_xp: updatedProfile.current_xp,
+            total_xp: updatedProfile.total_xp,
+            coins: updatedProfile.coins,
+            discipline_exp: updatedProfile.discipline_exp,
+          })
+          .eq('id', profile.id);
+      }
     }
 
-    await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
+    if (!isDemoMode) {
+      await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
+    }
   };
 
   // COMPLETE POMODORO SESSION
@@ -355,6 +537,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (levelResult.levelsGained > 0) {
       setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+    }
+
+    if (isDemoMode) {
+      const newLog: ActivityLog = {
+        id: `log-${Date.now()}`,
+        user_id: profile.id,
+        action_type: 'pomo_finished',
+        xp_gained: xpEarned,
+        coins_change: coinsEarned,
+        attribute: 'focus',
+        metadata: { duration_minutes: durationMinutes },
+        created_at: new Date().toISOString(),
+      };
+      setActivityLogs((prev) => [newLog, ...prev.slice(0, 19)]);
+      return;
     }
 
     try {
@@ -397,35 +594,35 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedCoins = profile.coins - item.cost;
     setProfile((prev) => (prev ? { ...prev, coins: updatedCoins } : null));
 
-    const newInvItem: Partial<InventoryItem> = {
+    const newInvItem: InventoryItem = {
+      id: `inv-${Date.now()}`,
       user_id: profile.id,
       item_id: item.id,
       item_name: item.name,
       category: item.category,
+      acquired_at: new Date().toISOString(),
     };
 
-    try {
-      const { data: insertedItem } = await supabase
-        .from('inventory')
-        .insert(newInvItem)
-        .select()
-        .single();
+    setInventory((prev) => [...prev, newInvItem]);
+    await equipItem(item.category, item.id);
 
-      if (insertedItem) {
-        setInventory((prev) => [...prev, insertedItem as InventoryItem]);
+    if (!isDemoMode) {
+      try {
+        await supabase.from('inventory').insert({
+          user_id: profile.id,
+          item_id: item.id,
+          item_name: item.name,
+          category: item.category,
+        });
+
+        await supabase
+          .from('profiles')
+          .update({ coins: updatedCoins })
+          .eq('id', profile.id);
+      } catch (err) {
+        console.error('Error purchasing item:', err);
+        setProfile((prev) => (prev ? { ...prev, coins: profile.coins } : null));
       }
-
-      await supabase
-        .from('profiles')
-        .update({ coins: updatedCoins })
-        .eq('id', profile.id);
-
-      // Auto equip purchased item
-      await equipItem(item.category, item.id);
-    } catch (err) {
-      console.error('Error purchasing item:', err);
-      // rollback
-      setProfile((prev) => (prev ? { ...prev, coins: profile.coins } : null));
     }
   };
 
@@ -437,27 +634,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedProfile = { ...profile, [columnKey]: itemId };
     setProfile(updatedProfile);
 
-    await supabase
-      .from('profiles')
-      .update({ [columnKey]: itemId })
-      .eq('id', profile.id);
+    if (!isDemoMode) {
+      await supabase
+        .from('profiles')
+        .update({ [columnKey]: itemId })
+        .eq('id', profile.id);
+    }
   };
 
   // CREATE VOUCHER
   const createVoucher = async (title: string, cost: number, icon: string) => {
     if (!profile) return;
 
-    const newVoucher = {
+    const newVoucher: Voucher = {
+      id: `voucher-${Date.now()}`,
       user_id: profile.id,
       title,
       cost,
       icon,
       times_redeemed: 0,
+      created_at: new Date().toISOString(),
     };
 
-    const { data } = await supabase.from('vouchers').insert(newVoucher).select().single();
-    if (data) {
-      setVouchers((prev) => [data as Voucher, ...prev]);
+    setVouchers((prev) => [newVoucher, ...prev]);
+
+    if (!isDemoMode) {
+      await supabase.from('vouchers').insert({
+        user_id: profile.id,
+        title,
+        cost,
+        icon,
+        times_redeemed: 0,
+      });
     }
   };
 
@@ -473,43 +681,53 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       prev.map((v) => (v.id === voucher.id ? { ...v, times_redeemed: updatedTimes } : v))
     );
 
-    try {
-      await supabase
-        .from('profiles')
-        .update({ coins: updatedCoins })
-        .eq('id', profile.id);
+    if (!isDemoMode) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ coins: updatedCoins })
+          .eq('id', profile.id);
 
-      await supabase
-        .from('vouchers')
-        .update({ times_redeemed: updatedTimes })
-        .eq('id', voucher.id);
+        await supabase
+          .from('vouchers')
+          .update({ times_redeemed: updatedTimes })
+          .eq('id', voucher.id);
 
-      await supabase.from('activity_logs').insert({
-        user_id: profile.id,
-        action_type: 'voucher_redeemed',
-        coins_change: -voucher.cost,
-        metadata: { voucher_title: voucher.title },
-      });
-    } catch (err) {
-      console.error('Error redeeming voucher:', err);
+        await supabase.from('activity_logs').insert({
+          user_id: profile.id,
+          action_type: 'voucher_redeemed',
+          coins_change: -voucher.cost,
+          metadata: { voucher_title: voucher.title },
+        });
+      } catch (err) {
+        console.error('Error redeeming voucher:', err);
+      }
     }
   };
 
   // DELETE VOUCHER
   const deleteVoucher = async (voucherId: string) => {
     setVouchers((prev) => prev.filter((v) => v.id !== voucherId));
-    await supabase.from('vouchers').delete().eq('id', voucherId);
+    if (!isDemoMode) {
+      await supabase.from('vouchers').delete().eq('id', voucherId);
+    }
   };
 
   // UPDATE DISPLAY NAME
   const updateDisplayName = async (name: string) => {
     if (!profile) return;
     setProfile((prev) => (prev ? { ...prev, display_name: name } : null));
-    await supabase.from('profiles').update({ display_name: name }).eq('id', profile.id);
+    if (!isDemoMode) {
+      await supabase.from('profiles').update({ display_name: name }).eq('id', profile.id);
+    }
   };
 
   // SIGN OUT
   const signOut = async () => {
+    if (typeof document !== 'undefined') {
+      document.cookie = 'komorebi_demo=; path=/; max-age=0';
+    }
+    setIsDemoMode(false);
     await supabase.auth.signOut();
     setProfile(null);
     router.push('/login');
@@ -540,6 +758,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateDisplayName,
         signOut,
         refreshData: fetchData,
+        isDemoMode,
+        loadDemoMode,
       }}
     >
       {children}

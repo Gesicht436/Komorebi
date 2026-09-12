@@ -38,13 +38,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isDemo = request.cookies.get('komorebi_demo')?.value === 'true';
   const isAuthRoute =
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup');
 
-  // Protect app routes if not logged in
+  // Protect app routes if not logged in and not in demo mode
   if (
     !user &&
+    !isDemo &&
     !isAuthRoute &&
     request.nextUrl.pathname !== '/' &&
     !request.nextUrl.pathname.startsWith('/_next') &&
@@ -56,8 +58,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect to dashboard if logged in and accessing login/signup
-  if (user && isAuthRoute) {
+  // Redirect to dashboard if logged in (or in demo mode) and accessing login/signup
+  if ((user || isDemo) && isAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);

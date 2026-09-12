@@ -10,6 +10,7 @@ interface AvatarDisplayProps {
   equippedPet?: string;
   isStudying?: boolean;
   level?: number;
+  timeOfDay?: 'auto' | 'morning' | 'day' | 'dusk' | 'night';
   className?: string;
 }
 
@@ -20,8 +21,19 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   equippedPet = 'none',
   isStudying = false,
   level = 1,
+  timeOfDay = 'auto',
   className = '',
 }) => {
+  // Determine time of day
+  const [activeTime, setActiveTime] = React.useState<'morning' | 'day' | 'dusk' | 'night'>(() => {
+    if (timeOfDay !== 'auto') return timeOfDay;
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 11) return 'morning';
+    if (hour >= 11 && hour < 17) return 'day';
+    if (hour >= 17 && hour < 20) return 'dusk';
+    return 'night';
+  });
+
   // Hoodie color mapping
   const hoodieColors: Record<string, { main: string; shade: string; trim: string }> = {
     knit_sweater: { main: '#D7CCC8', shade: '#BCAAA4', trim: '#8D6E63' },
@@ -33,7 +45,25 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
   const hoodie = hoodieColors[equippedHoodie] || hoodieColors.knit_sweater;
 
   return (
-    <div className={`relative flex items-center justify-center p-4 select-none ${className}`}>
+    <div className={`relative flex flex-col items-center justify-center p-2 select-none ${className}`}>
+      {/* Time of Day Switcher Pills for Judges & Users */}
+      <div className="flex items-center gap-1 mb-2 bg-white/80 backdrop-blur-xs px-2 py-1 rounded-full border border-[#EFEBE9] text-[10px] font-bold text-[#8D6E63] shadow-xs">
+        {(['morning', 'day', 'dusk', 'night'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setActiveTime(t)}
+            className={`px-2 py-0.5 rounded-full capitalize transition-all cursor-pointer ${
+              activeTime === t
+                ? 'bg-[#E07A5F] text-white shadow-xs'
+                : 'hover:text-[#3E2723] hover:bg-[#F5EFEB]'
+            }`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
       <svg
         viewBox="0 0 400 340"
         className="w-full max-w-md h-auto drop-shadow-md transition-all duration-300"
@@ -45,16 +75,34 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
         <defs>
           {/* Warm Study Lamp Glow */}
           <radialGradient id="lampGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#FFF9C4" stopOpacity="0.8" />
-            <stop offset="60%" stopColor="#FFF59D" stopOpacity="0.3" />
+            <stop offset="0%" stopColor="#FFF9C4" stopOpacity={activeTime === 'night' ? '0.95' : '0.8'} />
+            <stop offset="60%" stopColor="#FFF59D" stopOpacity={activeTime === 'night' ? '0.45' : '0.3'} />
             <stop offset="100%" stopColor="#FFF9C4" stopOpacity="0" />
           </radialGradient>
 
-          {/* Cozy Window Day / Dusk Gradient */}
-          <linearGradient id="windowSky" x1="0" y1="0" x2="0" y2="1">
+          {/* Dynamic Window Sky Gradients */}
+          <linearGradient id="skyMorning" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#FFE082" />
+            <stop offset="50%" stopColor="#FFCC80" />
+            <stop offset="100%" stopColor="#F8BBD0" />
+          </linearGradient>
+
+          <linearGradient id="skyDay" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#E1F5FE" />
             <stop offset="70%" stopColor="#FFF9C4" />
             <stop offset="100%" stopColor="#FFE0B2" />
+          </linearGradient>
+
+          <linearGradient id="skyDusk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7E57C2" />
+            <stop offset="50%" stopColor="#FF7043" />
+            <stop offset="100%" stopColor="#FFA726" />
+          </linearGradient>
+
+          <linearGradient id="skyNight" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0B132B" />
+            <stop offset="60%" stopColor="#1C2541" />
+            <stop offset="100%" stopColor="#3A506B" />
           </linearGradient>
 
           {/* Steam Blur */}
@@ -64,15 +112,54 @@ export const AvatarDisplay: React.FC<AvatarDisplayProps> = ({
         </defs>
 
         {/* 1. BACKGROUND WALL & WINDOW */}
-        <rect x="20" y="20" width="360" height="300" rx="24" fill="#FDFBF7" stroke="#EFEBE9" strokeWidth="3" />
+        <rect x="20" y="20" width="360" height="300" rx="24" fill={activeTime === 'night' ? '#F7F4EF' : '#FDFBF7'} stroke="#EFEBE9" strokeWidth="3" />
 
-        {/* Cozy Window Frame */}
-        <rect x="50" y="45" width="100" height="130" rx="12" fill="url(#windowSky)" stroke="#D7CCC8" strokeWidth="4" />
+        {/* Cozy Window Frame with Dynamic Sky */}
+        <rect
+          x="50"
+          y="45"
+          width="100"
+          height="130"
+          rx="12"
+          fill={
+            activeTime === 'morning'
+              ? 'url(#skyMorning)'
+              : activeTime === 'dusk'
+              ? 'url(#skyDusk)'
+              : activeTime === 'night'
+              ? 'url(#skyNight)'
+              : 'url(#skyDay)'
+          }
+          stroke="#D7CCC8"
+          strokeWidth="4"
+        />
         <line x1="100" y1="45" x2="100" y2="175" stroke="#D7CCC8" strokeWidth="3" />
         <line x1="50" y1="110" x2="150" y2="110" stroke="#D7CCC8" strokeWidth="3" />
-        {/* Distant Trees / Sunlight Leaves (Komorebi Effect) */}
-        <circle cx="85" cy="140" r="28" fill="#81C784" fillOpacity="0.4" />
-        <circle cx="120" cy="150" r="24" fill="#A5D6A7" fillOpacity="0.5" />
+
+        {/* Window Scenery based on Time */}
+        {activeTime === 'night' ? (
+          <g id="nightScenery">
+            {/* Glowing Moon */}
+            <circle cx="120" cy="75" r="10" fill="#FFF9C4" />
+            <circle cx="123" cy="73" r="8" fill="#1C2541" />
+            {/* Stars */}
+            <circle cx="70" cy="65" r="1.5" fill="#FFFFFF" />
+            <circle cx="85" cy="80" r="1" fill="#FFFFFF" />
+            <circle cx="65" cy="95" r="1.2" fill="#FFFFFF" />
+            <circle cx="135" cy="95" r="1.5" fill="#FFFFFF" />
+            <circle cx="110" cy="130" r="1" fill="#FFFFFF" />
+            {/* Dark Tree Silhouette */}
+            <circle cx="85" cy="155" r="28" fill="#0B132B" fillOpacity="0.8" />
+            <circle cx="120" cy="160" r="24" fill="#0B132B" fillOpacity="0.9" />
+          </g>
+        ) : (
+          <g id="dayScenery">
+            {/* Distant Trees / Sunlight Leaves (Komorebi Effect) */}
+            <circle cx="85" cy="140" r="28" fill={activeTime === 'dusk' ? '#D84315' : '#81C784'} fillOpacity="0.4" />
+            <circle cx="120" cy="150" r="24" fill={activeTime === 'dusk' ? '#E64A19' : '#A5D6A7'} fillOpacity="0.5" />
+            <circle cx="65" cy="160" r="18" fill={activeTime === 'dusk' ? '#BF360C' : '#C8E6C9'} fillOpacity="0.6" />
+          </g>
+        )}
         <circle cx="65" cy="160" r="18" fill="#C8E6C9" fillOpacity="0.6" />
 
         {/* Bookshelf on the Right */}

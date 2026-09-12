@@ -262,6 +262,75 @@ class SoundEngine {
     return true;
   }
 
+  // Procedural Lo-Fi Rhodes Piano Chords Generator
+  private chordsInterval: number | null = null;
+  private isChordsPlaying: boolean = false;
+  private chordIndex: number = 0;
+
+  public toggleLofiChords(): boolean {
+    this.initCtx();
+    if (!this.ctx) return false;
+
+    if (this.isChordsPlaying) {
+      if (this.chordsInterval) clearInterval(this.chordsInterval);
+      this.isChordsPlaying = false;
+      return false;
+    }
+
+    // Lush 4-chord Lo-Fi jazz progression: Dm9 -> G13 -> Cmaj9 -> A7b13
+    const progressions = [
+      [146.83, 174.61, 220.0, 261.63, 329.63], // Dm9
+      [98.0, 174.61, 246.94, 329.63],          // G13
+      [130.81, 164.81, 196.0, 246.94, 293.66], // Cmaj9
+      [110.0, 196.0, 277.18, 349.23],          // A7b13
+    ];
+
+    const playChord = (chordNotes: number[]) => {
+      if (!this.ctx || this.isMuted || !this.isChordsPlaying) return;
+      chordNotes.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const overtone = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const now = this.ctx.currentTime;
+
+        // Warm electric piano tone
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+
+        overtone.type = 'triangle';
+        overtone.frequency.setValueAtTime(freq * 2, now);
+
+        const noteDelay = idx * 0.04; // Gentle strum effect
+        const startTime = now + noteDelay;
+
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(this.ambientVolume * 0.12, startTime + 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 2.9);
+
+        osc.connect(gain);
+        overtone.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(startTime);
+        overtone.start(startTime);
+        osc.stop(startTime + 3.0);
+        overtone.stop(startTime + 3.0);
+      });
+    };
+
+    this.isChordsPlaying = true;
+    playChord(progressions[this.chordIndex]);
+    this.chordIndex = (this.chordIndex + 1) % progressions.length;
+
+    this.chordsInterval = window.setInterval(() => {
+      playChord(progressions[this.chordIndex]);
+      this.chordIndex = (this.chordIndex + 1) % progressions.length;
+    }, 3200);
+
+    return true;
+  }
+
   public getRainState(): boolean {
     return this.isRainPlaying;
   }
@@ -269,6 +338,11 @@ class SoundEngine {
   public getVinylState(): boolean {
     return this.isVinylPlaying;
   }
+
+  public getLofiChordsState(): boolean {
+    return this.isChordsPlaying;
+  }
 }
 
 export const soundEngine = new SoundEngine();
+

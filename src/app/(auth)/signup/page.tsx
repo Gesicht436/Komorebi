@@ -134,7 +134,26 @@ export default function SignupPage() {
           </button>
         </form>
 
-        <div className="mt-6 pt-5 border-t border-[#EFEBE9] text-center text-xs text-[#8D6E63]">
+        {/* Instant Judge Demo Mode Button */}
+        <div className="mt-5 pt-4 border-t border-[#EFEBE9]">
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playLevelUp();
+              document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
+              router.push('/dashboard');
+            }}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FFF8E1] to-[#FBE9E7] border border-[#FFE082] text-[#E07A5F] hover:text-[#D46A4F] font-extrabold text-xs shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-[#F4A261] animate-pulse" />
+            <span>One-Click Judge Tour (Instant Demo)</span>
+          </button>
+          <p className="text-[10px] text-center text-[#8D6E63] mt-1.5">
+            Pre-loaded with Level 3 Scholar, unlocked Calico Cat, 5-day streak, and coins.
+          </p>
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-[#EFEBE9] text-center text-xs text-[#8D6E63]">
           Already have a character?{' '}
           <Link
             href="/login"
