@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -16,9 +16,53 @@ import {
   calculateStreakUpdate,
   getXpRequiredForLevel,
 } from '@/lib/game/engine';
+import { soundEngine } from '@/lib/audio/sound-engine';
 import { LevelUpModal } from '@/components/modals/LevelUpModal';
 
+export type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
+
+export interface TimerDurations {
+  focus: number;
+  shortBreak: number;
+  longBreak: number;
+}
+
+export interface TimerState {
+  mode: TimerMode;
+  timeLeft: number;
+  isRunning: boolean;
+  wasAutoPausedFocus: boolean;
+  justAutoResumed: boolean;
+  durations: TimerDurations;
+  sessionsCompletedToday: number;
+}
+
+const DEFAULT_DURATIONS: TimerDurations = {
+  focus: 25,
+  shortBreak: 5,
+  longBreak: 15,
+};
+
+const TIMER_STORAGE_KEY = 'komorebi_timer_settings';
 const DEMO_STORAGE_KEY = 'komorebi_demo_state';
+
+const loadSavedDurations = (): TimerDurations => {
+  if (typeof window === 'undefined') return DEFAULT_DURATIONS;
+  try {
+    const raw = localStorage.getItem(TIMER_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.focus === 'number') {
+        return {
+          focus: Math.max(1, parsed.focus || 25),
+          shortBreak: Math.max(1, parsed.shortBreak || 5),
+          longBreak: Math.max(1, parsed.longBreak || 15),
+        };
+      }
+    }
+  } catch {}
+  return DEFAULT_DURATIONS;
+};
 
 const DEMO_PROFILE: Profile = {
   id: 'demo-judge-id',
@@ -203,6 +247,16 @@ interface GameContextType {
   isDemoMode: boolean;
   loadDemoMode: () => void;
   resetDemoData: () => void;
+
+  // Global Pomodoro Timer Engine
+  timerState: TimerState;
+  startTimer: () => void;
+  pauseTimer: () => void;
+  resetTimer: () => void;
+  setTimerMode: (mode: TimerMode) => void;
+  updateTimerDurations: (durations: TimerDurations) => void;
+  onEnterFocusPage: () => void;
+  onLeaveFocusPage: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -217,14 +271,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isStudying, setIsStudying] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Pomodoro Timer State
+  const [timerDurations, setTimerDurations] = useState<TimerDurations>(DEFAULT_DURATIONS);
+  const [timerMode, setTimerModeState] = useState<TimerMode>('focus');
+  const [timeLeft, setTimeLeft] = useState<number>(DEFAULT_DURATIONS.focus * 60);
+  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+  const [wasAutoPausedFocus, setWasAutoPausedFocus] = useState<boolean>(false);
+  const [justAutoResumed, setJustAutoResumed] = useState<boolean>(false);
+  const [sessionsCompletedToday, setSessionsCompletedToday] = useState<number>(0);
 
   // Level Up Modal State
   const [levelUpModal, setLevelUpModal] = useState<{ isOpen: boolean; newLevel: number }>({
     isOpen: false,
     newLevel: 1,
   });
+
+  // Load saved timer settings on mount
+  useEffect(() => {
+    const saved = loadSavedDurations();
+    setTimerDurations(saved);
+    setTimeLeft(saved.focus * 60);
+  }, []);
+
+  // Timer Tick Interval
+  const isTimerRunningRef = useRef(isTimerRunning);
+  isTimerRunningRef.current = isTimerRunning;
+  const timerModeRef = useRef(timerMode);
+  timerModeRef.current = timerMode;
+  const timerDurationsRef = useRef(timerDurations);
+  timerDurationsRef.current = timerDurations;
+  const wasAutoPausedFocusRef = useRef(wasAutoPausedFocus);
+  wasAutoPausedFocusRef.current = wasAutoPausedFocus;
 
   // Load or restore demo state from persistent storage
   const loadDemoState = useCallback(() => {
@@ -276,7 +355,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // 1. Fetch or initialize profile
       const { data: profileData, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
@@ -312,7 +390,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(profileData as Profile);
       }
 
-      // 2. Fetch Quests
       const { data: questsData } = await supabase
         .from('quests')
         .select('*')
@@ -320,14 +397,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .order('created_at', { ascending: false });
       setQuests((questsData || []) as Quest[]);
 
-      // 3. Fetch Inventory
       const { data: invData } = await supabase
         .from('inventory')
         .select('*')
         .eq('user_id', user.id);
       setInventory((invData || []) as InventoryItem[]);
 
-      // 4. Fetch Vouchers
       const { data: voucherData } = await supabase
         .from('vouchers')
         .select('*')
@@ -335,7 +410,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .order('created_at', { ascending: false });
       setVouchers((voucherData || []) as Voucher[]);
 
-      // 5. Fetch Activity Logs
       const { data: logData } = await supabase
         .from('activity_logs')
         .select('*')
@@ -353,6 +427,175 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // COMPLETE POMODORO SESSION
+  const completePomodoroSession = useCallback(async (durationMinutes: number) => {
+    if (!profile) return;
+
+    const xpEarned = 35;
+    const coinsEarned = 12;
+
+    const levelResult = processXpGain(profile.level, profile.current_xp, xpEarned);
+    const updatedProfile: Profile = {
+      ...profile,
+      level: levelResult.newLevel,
+      current_xp: levelResult.newCurrentXp,
+      total_xp: profile.total_xp + xpEarned,
+      coins: profile.coins + coinsEarned,
+      focus_exp: profile.focus_exp + xpEarned,
+    };
+
+    setProfile(updatedProfile);
+
+    if (levelResult.levelsGained > 0) {
+      setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+    }
+
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user_id: profile.id,
+      action_type: 'pomo_finished',
+      xp_gained: xpEarned,
+      coins_change: coinsEarned,
+      attribute: 'focus',
+      metadata: { duration_minutes: durationMinutes },
+      created_at: new Date().toISOString(),
+    };
+    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+    setActivityLogs(updatedLogs);
+
+    if (isDemoMode) {
+      savePersistedDemoState({ profile: updatedProfile, activityLogs: updatedLogs });
+      return;
+    }
+
+    try {
+      await supabase
+        .from('profiles')
+        .update({
+          level: updatedProfile.level,
+          current_xp: updatedProfile.current_xp,
+          total_xp: updatedProfile.total_xp,
+          coins: updatedProfile.coins,
+          focus_exp: updatedProfile.focus_exp,
+        })
+        .eq('id', profile.id);
+
+      await supabase.from('activity_logs').insert({
+        user_id: profile.id,
+        action_type: 'pomo_finished',
+        xp_gained: xpEarned,
+        coins_change: coinsEarned,
+        attribute: 'focus',
+        metadata: { duration_minutes: durationMinutes },
+      });
+    } catch (err) {
+      console.error('Error logging pomodoro session:', err);
+    }
+  }, [profile, isDemoMode, activityLogs, supabase]);
+
+  // Handle Timer Finish
+  const handleTimerComplete = useCallback(async () => {
+    setIsTimerRunning(false);
+    setWasAutoPausedFocus(false);
+    soundEngine.playQuestComplete();
+
+    const currentMode = timerModeRef.current;
+    const currentDurations = timerDurationsRef.current;
+
+    if (currentMode === 'focus') {
+      setSessionsCompletedToday((prev) => prev + 1);
+      await completePomodoroSession(currentDurations.focus);
+      setTimerModeState('shortBreak');
+      setTimeLeft(currentDurations.shortBreak * 60);
+    } else {
+      setTimerModeState('focus');
+      setTimeLeft(currentDurations.focus * 60);
+    }
+  }, [completePomodoroSession]);
+
+  // Timer Tick
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isTimerRunning) {
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleTimerComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isTimerRunning, handleTimerComplete]);
+
+  // Navigation handlers
+  const onLeaveFocusPage = useCallback(() => {
+    // Only pause if in deep focus timer!
+    if (timerModeRef.current === 'focus' && isTimerRunningRef.current) {
+      setIsTimerRunning(false);
+      setWasAutoPausedFocus(true);
+    }
+    // Short break and long break timers DO NOT stop and continue running!
+  }, []);
+
+  const onEnterFocusPage = useCallback(() => {
+    // Resume automatically if it was deep focus and was auto-paused on leave
+    if (timerModeRef.current === 'focus' && wasAutoPausedFocusRef.current) {
+      setIsTimerRunning(true);
+      setWasAutoPausedFocus(false);
+      setJustAutoResumed(true);
+      setTimeout(() => {
+        setJustAutoResumed(false);
+      }, 4000);
+    }
+  }, []);
+
+  const startTimer = useCallback(() => {
+    soundEngine.playClick();
+    setIsTimerRunning(true);
+    setWasAutoPausedFocus(false);
+  }, []);
+
+  const pauseTimer = useCallback(() => {
+    soundEngine.playClick();
+    setIsTimerRunning(false);
+    setWasAutoPausedFocus(false);
+  }, []);
+
+  const resetTimer = useCallback(() => {
+    soundEngine.playClick();
+    setIsTimerRunning(false);
+    setWasAutoPausedFocus(false);
+    setTimeLeft(timerDurations[timerMode] * 60);
+  }, [timerDurations, timerMode]);
+
+  const setTimerMode = useCallback((mode: TimerMode) => {
+    soundEngine.playClick();
+    setIsTimerRunning(false);
+    setWasAutoPausedFocus(false);
+    setTimerModeState(mode);
+    setTimeLeft(timerDurations[mode] * 60);
+  }, [timerDurations]);
+
+  const updateTimerDurations = useCallback((newDurations: TimerDurations) => {
+    const validated: TimerDurations = {
+      focus: Math.max(1, Math.min(180, Number(newDurations.focus) || 25)),
+      shortBreak: Math.max(1, Math.min(60, Number(newDurations.shortBreak) || 5)),
+      longBreak: Math.max(1, Math.min(90, Number(newDurations.longBreak) || 15)),
+    };
+    setTimerDurations(validated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(validated));
+    }
+    if (!isTimerRunningRef.current) {
+      setTimeLeft(validated[timerModeRef.current] * 60);
+    }
+  }, []);
 
   // COMPLETE QUEST
   const completeQuest = async (questId: string) => {
@@ -590,72 +833,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
   };
 
-  // COMPLETE POMODORO SESSION
-  const completePomodoroSession = async (durationMinutes: number) => {
-    if (!profile) return;
-
-    const xpEarned = 35;
-    const coinsEarned = 12;
-
-    const levelResult = processXpGain(profile.level, profile.current_xp, xpEarned);
-    const updatedProfile: Profile = {
-      ...profile,
-      level: levelResult.newLevel,
-      current_xp: levelResult.newCurrentXp,
-      total_xp: profile.total_xp + xpEarned,
-      coins: profile.coins + coinsEarned,
-      focus_exp: profile.focus_exp + xpEarned,
-    };
-
-    setProfile(updatedProfile);
-
-    if (levelResult.levelsGained > 0) {
-      setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
-    }
-
-    const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
-      user_id: profile.id,
-      action_type: 'pomo_finished',
-      xp_gained: xpEarned,
-      coins_change: coinsEarned,
-      attribute: 'focus',
-      metadata: { duration_minutes: durationMinutes },
-      created_at: new Date().toISOString(),
-    };
-    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
-    setActivityLogs(updatedLogs);
-
-    if (isDemoMode) {
-      savePersistedDemoState({ profile: updatedProfile, activityLogs: updatedLogs });
-      return;
-    }
-
-    try {
-      await supabase
-        .from('profiles')
-        .update({
-          level: updatedProfile.level,
-          current_xp: updatedProfile.current_xp,
-          total_xp: updatedProfile.total_xp,
-          coins: updatedProfile.coins,
-          focus_exp: updatedProfile.focus_exp,
-        })
-        .eq('id', profile.id);
-
-      await supabase.from('activity_logs').insert({
-        user_id: profile.id,
-        action_type: 'pomo_finished',
-        xp_gained: xpEarned,
-        coins_change: coinsEarned,
-        attribute: 'focus',
-        metadata: { duration_minutes: durationMinutes },
-      });
-    } catch (err) {
-      console.error('Error logging pomodoro session:', err);
-    }
-  };
-
   // PURCHASE SHOP ITEM
   const purchaseShopItem = async (item: ShopItem) => {
     if (!profile || profile.coins < item.cost) return;
@@ -849,6 +1026,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     router.refresh();
   };
 
+  // Studying state mirrors active deep focus timer
+  const isStudying = isTimerRunning && timerMode === 'focus';
+
+  const timerState: TimerState = {
+    mode: timerMode,
+    timeLeft,
+    isRunning: isTimerRunning,
+    wasAutoPausedFocus,
+    justAutoResumed,
+    durations: timerDurations,
+    sessionsCompletedToday,
+  };
+
   return (
     <GameContext.Provider
       value={{
@@ -859,7 +1049,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activityLogs,
         isLoading,
         isStudying,
-        setIsStudying,
+        setIsStudying: () => {},
         completeQuest,
         createOrUpdateQuest,
         deleteQuest,
@@ -876,6 +1066,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isDemoMode,
         loadDemoMode,
         resetDemoData,
+
+        // Timer Engine
+        timerState,
+        startTimer,
+        pauseTimer,
+        resetTimer,
+        setTimerMode,
+        updateTimerDurations,
+        onEnterFocusPage,
+        onLeaveFocusPage,
       }}
     >
       {children}

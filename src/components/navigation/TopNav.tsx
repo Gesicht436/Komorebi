@@ -21,9 +21,11 @@ import {
   LogOut,
   Menu,
   X,
+  Coffee,
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { Profile } from '@/types/database';
+import { useGame } from '@/context/GameContext';
 
 interface TopNavProps {
   profile: Profile | null;
@@ -39,6 +41,7 @@ export const TopNav: React.FC<TopNavProps> = ({
   onResetDemo,
 }) => {
   const pathname = usePathname();
+  const { timerState } = useGame();
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [isRainActive, setIsRainActive] = useState(soundEngine.getRainState());
   const [isVinylActive, setIsVinylActive] = useState(soundEngine.getVinylState());
@@ -104,6 +107,10 @@ export const TopNav: React.FC<TopNavProps> = ({
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;
+            const isFocusLink = link.href === '/focus';
+            const isBreakRunning = isFocusLink && timerState.isRunning && timerState.mode !== 'focus';
+            const isFocusPaused = isFocusLink && timerState.wasAutoPausedFocus;
+
             return (
               <Link
                 key={link.href}
@@ -116,7 +123,13 @@ export const TopNav: React.FC<TopNavProps> = ({
                 }`}
               >
                 <Icon className={`w-4 h-4 ${isActive ? 'text-[#E07A5F]' : 'text-[#8D6E63]'}`} />
-                {link.label}
+                <span>{link.label}</span>
+                {isBreakRunning && (
+                  <span className="w-2 h-2 rounded-full bg-[#81B29A] animate-ping ml-0.5" title="Break in progress" />
+                )}
+                {isFocusPaused && (
+                  <span className="w-2 h-2 rounded-full bg-[#E07A5F] ml-0.5" title="Focus session paused" />
+                )}
               </Link>
             );
           })}
@@ -124,6 +137,33 @@ export const TopNav: React.FC<TopNavProps> = ({
 
         {/* Status Pills & Audio Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Active Background Break Pill */}
+          {timerState.isRunning && timerState.mode !== 'focus' && pathname !== '/focus' && (
+            <Link
+              href="/focus"
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#E8F5E9] border border-[#A5D6A7] text-[#2E7D32] text-xs font-semibold hover:bg-[#C8E6C9] transition-all shadow-xs animate-pulse"
+              title="Break timer running in background - click to view"
+            >
+              <Coffee className="w-3.5 h-3.5 text-[#43A047]" />
+              <span>
+                Break: {Math.floor(timerState.timeLeft / 60)}:
+                {String(timerState.timeLeft % 60).padStart(2, '0')}
+              </span>
+            </Link>
+          )}
+
+          {/* Auto-Paused Focus Pill */}
+          {timerState.wasAutoPausedFocus && pathname !== '/focus' && (
+            <Link
+              href="/focus"
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FFF3E0] border border-[#FFE082] text-[#E65100] text-xs font-semibold hover:bg-[#FFE082]/60 transition-all shadow-xs"
+              title="Deep Focus auto-paused while away - click to resume"
+            >
+              <Timer className="w-3.5 h-3.5 text-[#FB8C00]" />
+              <span>Resume Focus</span>
+            </Link>
+          )}
+
           {/* Streak Badge */}
           {profile && (
             <div

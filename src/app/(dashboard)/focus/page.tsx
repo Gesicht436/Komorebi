@@ -1,12 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import { PomodoroTimer } from '@/components/focus/PomodoroTimer';
 import { AvatarDisplay } from '@/components/avatar/AvatarDisplay';
 
 export default function FocusPage() {
-  const { profile, completePomodoroSession, isStudying, setIsStudying } = useGame();
+  const { profile, isStudying, onEnterFocusPage, onLeaveFocusPage } = useGame();
+
+  // Handle page enter / leave lifecycle for Deep Focus auto-pause / auto-resume
+  useEffect(() => {
+    onEnterFocusPage();
+    return () => {
+      onLeaveFocusPage();
+    };
+  }, [onEnterFocusPage, onLeaveFocusPage]);
 
   if (!profile) return null;
 
@@ -18,7 +26,7 @@ export default function FocusPage() {
           Lo-Fi Study Chamber
         </h1>
         <p className="text-xs sm:text-sm text-[#8D6E63] mt-1">
-          Lock in for 25 minutes of deep focus. Turn on ambient rain, hear the soft vinyl crackle, and earn Focus XP when your session completes.
+          Lock in for deep focus with procedural lo-fi ambient audio. Deep Focus automatically pauses if you switch tabs and resumes when you return, while break timers keep ticking!
         </p>
       </div>
 
@@ -42,10 +50,7 @@ export default function FocusPage() {
 
         {/* The Pomodoro Timer */}
         <div className="lg:col-span-7">
-          <PomodoroTimer
-            onSessionComplete={completePomodoroSession}
-            onStudyStateChange={setIsStudying}
-          />
+          <PomodoroTimer />
         </div>
       </div>
     </div>
