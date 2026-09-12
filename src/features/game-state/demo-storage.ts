@@ -10,6 +10,17 @@ export const loadPersistedDemoState = (): PersistedState => {
         if (!parsed.bossBattle) {
           parsed.bossBattle = { ...getInitialDemoState().bossBattle };
         }
+        if (Array.isArray(parsed.activityLogs)) {
+          const seen = new Set<string>();
+          parsed.activityLogs = parsed.activityLogs.map((log: any, idx: number) => {
+            if (!log || !log.id || seen.has(log.id)) {
+              const uniqueId = `log-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`;
+              return { ...log, id: uniqueId };
+            }
+            seen.add(log.id);
+            return log;
+          });
+        }
         return parsed;
       }
     }

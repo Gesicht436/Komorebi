@@ -100,7 +100,7 @@ export function createLocalScholarProfile(displayName: string, email: string): P
 
   const vouchers: Voucher[] = [
     {
-      id: `vouch-${Date.now()}-1`,
+      id: `vouch-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       user_id: userId,
       title: '30-Min Lo-Fi Manga Break',
       cost: 30,
@@ -112,7 +112,7 @@ export function createLocalScholarProfile(displayName: string, email: string): P
 
   const activityLogs: ActivityLog[] = [
     {
-      id: `log-${Date.now()}`,
+      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       user_id: userId,
       action_type: 'streak_updated',
       xp_gained: 0,

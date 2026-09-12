@@ -50,6 +50,22 @@ import {
 
 export type { TimerMode, TimerDurations, TimerState };
 
+export const generateUniqueId = (prefix: string = 'id'): string => {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};
+
+export const sanitizeLogs = (logs: ActivityLog[]): ActivityLog[] => {
+  const seen = new Set<string>();
+  return (logs || []).map((log, idx) => {
+    if (!log || !log.id || seen.has(log.id)) {
+      const uniqueId = `log-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`;
+      return { ...log, id: uniqueId };
+    }
+    seen.add(log.id);
+    return log;
+  });
+};
+
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -92,11 +108,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
     }
     const state = loadPersistedDemoState();
+    const cleanLogs = sanitizeLogs(state.activityLogs);
     setProfile(state.profile);
     setQuests(state.quests);
     setInventory(state.inventory);
     setVouchers(state.vouchers);
-    setActivityLogs(state.activityLogs);
+    setActivityLogs(cleanLogs);
+    activityLogsRef.current = cleanLogs;
     setBossBattle(state.bossBattle || DEMO_BOSS_BATTLE);
     setIsLoading(false);
   }, []);
@@ -108,11 +126,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetDemoData = useCallback(() => {
     const fresh = resetPersistedDemoState();
+    const cleanLogs = sanitizeLogs(fresh.activityLogs);
     setProfile(fresh.profile);
     setQuests(fresh.quests);
     setInventory(fresh.inventory);
     setVouchers(fresh.vouchers);
-    setActivityLogs(fresh.activityLogs);
+    setActivityLogs(cleanLogs);
+    activityLogsRef.current = cleanLogs;
     setBossBattle(fresh.bossBattle || DEMO_BOSS_BATTLE);
   }, []);
 
@@ -220,7 +240,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setQuests((questsRes.data as Quest[]) || []);
       setInventory((invRes.data as InventoryItem[]) || []);
       setVouchers((vouchersRes.data as Voucher[]) || []);
-      setActivityLogs((logsRes.data as ActivityLog[]) || []);
+      const cleanLogs = sanitizeLogs((logsRes.data as ActivityLog[]) || []);
+      setActivityLogs(cleanLogs);
+      activityLogsRef.current = cleanLogs;
 
       let currentBoss = bossRes.data?.[0] as BossBattle | undefined;
       if (!currentBoss) {
@@ -292,7 +314,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Forge legendary loot trophy into inventory
         const newLootItem: InventoryItem = {
-          id: `loot-${Date.now()}`,
+          id: generateUniqueId('loot'),
           user_id: currentProfile.id,
           item_id: currentBoss.reward_item_id,
           item_name: currentBoss.reward_item_name,
@@ -304,7 +326,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setInventory(updatedInventory);
 
         const defeatLog: ActivityLog = {
-          id: `log-${Date.now()}`,
+          id: generateUniqueId('log'),
           user_id: currentProfile.id,
           action_type: 'boss_defeated',
           xp_gained: bonusXp,
@@ -355,7 +377,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         const strikeLog: ActivityLog = {
-          id: `log-${Date.now()}`,
+          id: generateUniqueId('log'),
           user_id: currentProfile.id,
           action_type: 'boss_attacked',
           xp_gained: 0,
@@ -461,7 +483,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUniqueId('log'),
       user_id: profile.id,
       action_type: 'pomo_finished',
       xp_gained: totalXpEarned,
@@ -569,7 +591,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUniqueId('log'),
       user_id: profile.id,
       action_type: 'quest_completed',
       xp_gained: totalXpEarned,
@@ -649,7 +671,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         nextQuests = quests.map((q) => (q.id === questData.id ? ({ ...q, ...questData } as Quest) : q));
       } else {
         const newDemoQuest: Quest = {
-          id: `demo-q-${Date.now()}`,
+          id: generateUniqueId('quest'),
           user_id: profile.id,
           title: questData.title || '',
           description: questData.description || '',
@@ -753,7 +775,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const newLog: ActivityLog = {
-        id: `log-${Date.now()}`,
+        id: generateUniqueId('log'),
         user_id: profile.id,
         action_type: 'streak_updated',
         xp_gained: totalXpEarned,
@@ -828,7 +850,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(updatedProfile);
 
     const newItem: InventoryItem = {
-      id: `inv-${Date.now()}`,
+      id: generateUniqueId('inv'),
       user_id: profile.id,
       item_id: item.id,
       item_name: item.name,
@@ -839,7 +861,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setInventory(updatedInventory);
 
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUniqueId('log'),
       user_id: profile.id,
       action_type: 'item_purchased',
       xp_gained: 0,
@@ -911,7 +933,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile) return;
     soundEngine.playClick();
     const newVoucher: Voucher = {
-      id: `vouch-${Date.now()}`,
+      id: generateUniqueId('vouch'),
       user_id: profile.id,
       title,
       cost,
@@ -948,7 +970,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setVouchers(updatedVouchers);
 
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUniqueId('log'),
       user_id: profile.id,
       action_type: 'voucher_redeemed',
       xp_gained: 0,
@@ -1013,7 +1035,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(updatedProfile);
 
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUniqueId('log'),
       user_id: profile.id,
       action_type: 'streak_shield_bought',
       xp_gained: 0,
@@ -1075,7 +1097,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const alreadyOwned = inventory.some((item) => item.item_id === wonItem.id);
     if (!isJackpot && !alreadyOwned) {
       const newItem: InventoryItem = {
-        id: `inv-${Date.now()}`,
+        id: generateUniqueId('inv'),
         user_id: profile.id,
         item_id: wonItem.id,
         item_name: wonItem.name,
@@ -1087,7 +1109,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const newLog: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateUniqueId('log'),
       user_id: profile.id,
       action_type: 'gacha_pulled',
       xp_gained: 0,

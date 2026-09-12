@@ -189,14 +189,14 @@ export const CoinLedger: React.FC<CoinLedgerProps> = ({
             </p>
           </div>
         ) : (
-          filteredTransactions.map((log) => {
+          filteredTransactions.map((log, index) => {
             const details = getTransactionDetails(log);
             const Icon = details.icon;
             const isPositive = (log.coins_change || 0) > 0;
 
             return (
               <div
-                key={log.id}
+                key={`${log.id || 'tx'}-${index}`}
                 className="bg-white border border-[#EFEBE9] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-4 shadow-xs hover:border-[#D7CCC8] transition-all"
               >
                 <div className="flex items-center gap-3 min-w-0">

@@ -18,8 +18,8 @@ export const ActivityChronicle: React.FC<ActivityChronicleProps> = ({ activityLo
 
       {activityLogs.length > 0 ? (
         <div className="divide-y divide-[#EFEBE9] max-h-80 overflow-y-auto pr-2">
-          {activityLogs.map((log) => (
-            <div key={log.id} className="py-3 flex items-center justify-between text-xs">
+          {activityLogs.map((log, index) => (
+            <div key={`${log.id || 'log'}-${index}`} className="py-3 flex items-center justify-between text-xs">
               <div>
                 <span className="font-bold text-[#3E2723] capitalize">
                   {log.action_type.replace('_', ' ')}
