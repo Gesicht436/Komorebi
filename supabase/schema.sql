@@ -113,7 +113,11 @@ create table if not exists public.activity_logs (
 
 -- 8. AUTOMATIC PROFILE INITIALIZATION ON SIGNUP
 create or replace function public.handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
   insert into public.profiles (id, email, display_name)
   values (
@@ -145,7 +149,10 @@ begin
 
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
+
+-- Revoke direct API execution of trigger function
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 -- Trigger to run after a new user is created in auth.users
 drop trigger if exists on_auth_user_created on auth.users;
@@ -153,7 +160,13 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 9. ROW LEVEL SECURITY (RLS) POLICIES
+-- 9. COVERING INDEXES FOR PERFORMANCE
+create index if not exists idx_quests_user_id on public.quests(user_id);
+create index if not exists idx_vouchers_user_id on public.vouchers(user_id);
+create index if not exists idx_activity_logs_user_id on public.activity_logs(user_id);
+create index if not exists idx_inventory_user_id on public.inventory(user_id);
+
+-- 10. ROW LEVEL SECURITY (RLS) POLICIES
 alter table public.profiles enable row level security;
 alter table public.quests enable row level security;
 alter table public.inventory enable row level security;
@@ -163,60 +176,60 @@ alter table public.activity_logs enable row level security;
 -- Profiles: Users can select and update their own profile
 create policy "Users can view own profile"
   on public.profiles for select
-  using (auth.uid() = id);
+  using ((select auth.uid()) = id);
 
 create policy "Users can update own profile"
   on public.profiles for update
-  using (auth.uid() = id);
+  using ((select auth.uid()) = id);
 
 -- Quests: Users can CRUD their own quests
 create policy "Users can view own quests"
   on public.quests for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can insert own quests"
   on public.quests for insert
-  with check (auth.uid() = user_id);
+  with check ((select auth.uid()) = user_id);
 
 create policy "Users can update own quests"
   on public.quests for update
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can delete own quests"
   on public.quests for delete
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 -- Inventory: Users can view and add to own inventory
 create policy "Users can view own inventory"
   on public.inventory for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can insert own inventory"
   on public.inventory for insert
-  with check (auth.uid() = user_id);
+  with check ((select auth.uid()) = user_id);
 
 -- Vouchers: Users can view and manage their vouchers
 create policy "Users can view own vouchers"
   on public.vouchers for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can insert own vouchers"
   on public.vouchers for insert
-  with check (auth.uid() = user_id);
+  with check ((select auth.uid()) = user_id);
 
 create policy "Users can update own vouchers"
   on public.vouchers for update
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can delete own vouchers"
   on public.vouchers for delete
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 -- Activity Logs: Users can view and insert own logs
 create policy "Users can view own activity logs"
   on public.activity_logs for select
-  using (auth.uid() = user_id);
+  using ((select auth.uid()) = user_id);
 
 create policy "Users can insert own activity logs"
   on public.activity_logs for insert
-  with check (auth.uid() = user_id);
+  with check ((select auth.uid()) = user_id);
