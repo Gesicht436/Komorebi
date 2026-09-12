@@ -6,6 +6,7 @@ import { X, Sparkles, Plus } from 'lucide-react';
 import { Quest, QuestAttribute, QuestDifficulty, QuestType } from '@/types/database';
 import { ATTRIBUTE_CONFIG, DIFFICULTY_CONFIG } from '@/lib/game/engine';
 import { soundEngine } from '@/lib/audio/sound-engine';
+import { TASK_CATEGORY_PRESETS, TaskCategoryPreset } from '../constants/task-categories';
 
 interface QuestModalProps {
   isOpen: boolean;
@@ -25,10 +26,21 @@ export const QuestModal: React.FC<QuestModalProps> = ({
   const [type, setType] = useState<QuestType>(initialQuest?.type || 'daily');
   const [attribute, setAttribute] = useState<QuestAttribute>(initialQuest?.attribute || 'focus');
   const [difficulty, setDifficulty] = useState<QuestDifficulty>(initialQuest?.difficulty || 'medium');
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
+
+  const handleSelectPreset = (preset: TaskCategoryPreset) => {
+    soundEngine.playClick();
+    setSelectedPresetId(preset.id);
+    setAttribute(preset.attribute);
+    if (!title || TASK_CATEGORY_PRESETS.some((p) => p.suggestedTitles.includes(title))) {
+      // Pick the first suggested title if user hasn't typed a custom one yet
+      setTitle(preset.suggestedTitles[0]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +73,9 @@ export const QuestModal: React.FC<QuestModalProps> = ({
     }
   };
 
+  const activeAttrConfig = ATTRIBUTE_CONFIG[attribute];
+  const rewardConfig = DIFFICULTY_CONFIG[difficulty];
+
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#3E2723]/30 backdrop-blur-xs">
@@ -68,7 +83,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="relative max-w-lg w-full bg-[#FFFBF5] border border-[#EFEBE9] rounded-3xl p-6 sm:p-7 shadow-xl overflow-hidden"
+          className="relative max-w-lg w-full max-h-[92vh] overflow-y-auto bg-[#FFFBF5] border border-[#EFEBE9] rounded-3xl p-6 sm:p-7 shadow-xl"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-[#EFEBE9]">
@@ -97,6 +112,30 @@ export const QuestModal: React.FC<QuestModalProps> = ({
             </div>
           )}
 
+          {/* Quick Category Presets */}
+          <div className="mt-4">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8D6E63] mb-1.5">
+              Quick Category Presets
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {TASK_CATEGORY_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                    selectedPresetId === preset.id || attribute === preset.attribute
+                      ? 'bg-[#E07A5F] text-white border-[#E07A5F] shadow-xs'
+                      : 'bg-white text-[#5D4037] border-[#EFEBE9] hover:bg-[#F5EFEB]'
+                  }`}
+                >
+                  <span>{preset.name}</span>
+                  <span className="ml-1 text-[10px] opacity-80">({preset.statCode})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1">
@@ -106,7 +145,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Read 20 pages of literature, Morning Yoga, Complete algorithms"
+                placeholder="e.g., Build auth endpoints, 45 min Gym session, 15m Meditation"
                 className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#D7CCC8] text-[#3E2723] text-sm focus:outline-none focus:ring-2 focus:ring-[#E07A5F] transition-all"
                 required
               />
@@ -120,7 +159,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                placeholder="Add any helpful context, checklist, or reflections..."
+                placeholder="Add checklist, link, or reflection notes..."
                 className="w-full px-4 py-2 rounded-xl bg-white border border-[#D7CCC8] text-[#3E2723] text-sm focus:outline-none focus:ring-2 focus:ring-[#E07A5F] transition-all resize-none"
               />
             </div>
@@ -147,11 +186,17 @@ export const QuestModal: React.FC<QuestModalProps> = ({
               </div>
             </div>
 
+            {/* Target Attribute / Stat */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037] mb-1.5">
-                Target Attribute
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-[#5D4037]">
+                  Character Stat to Level Up
+                </label>
+                <span className="text-[11px] font-bold text-[#E07A5F]">
+                  Levels up: {activeAttrConfig.rpgStat}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(Object.keys(ATTRIBUTE_CONFIG) as QuestAttribute[]).map((attr) => {
                   const cfg = ATTRIBUTE_CONFIG[attr];
                   const isSelected = attribute === attr;
@@ -159,19 +204,45 @@ export const QuestModal: React.FC<QuestModalProps> = ({
                     <button
                       key={attr}
                       type="button"
-                      onClick={() => setAttribute(attr)}
-                      className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
+                      onClick={() => {
+                        soundEngine.playClick();
+                        setAttribute(attr);
+                      }}
+                      className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer ${
                         isSelected
-                          ? 'border-[#E07A5F] bg-[#FBE9E7] shadow-xs'
+                          ? 'border-[#E07A5F] bg-[#FBE9E7] shadow-xs ring-1 ring-[#E07A5F]'
                           : 'border-[#EFEBE9] bg-white hover:bg-[#F5EFEB]'
                       }`}
                     >
-                      <div className="text-xs font-bold text-[#3E2723]">{cfg.label}</div>
-                      <div className="text-[10px] text-[#8D6E63] truncate">{cfg.description}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold text-[#3E2723]">{cfg.rpgStat}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold border ${cfg.badgeColor}`}>
+                          {cfg.statCode}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[#6D4C41] mt-0.5">{cfg.description}</div>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {cfg.categoryExamples.map((ex) => (
+                          <span
+                            key={ex}
+                            className="text-[9px] font-medium bg-[#F5EFEB] text-[#8D6E63] px-1.5 py-0.2 rounded"
+                          >
+                            {ex}
+                          </span>
+                        ))}
+                      </div>
                     </button>
                   );
                 })}
               </div>
+            </div>
+
+            {/* Stat Leveling Live Preview Banner */}
+            <div className="p-3 rounded-2xl bg-[#FFF8E1] border border-[#FFE082] text-xs text-[#8D6E63] flex items-center justify-between">
+              <span className="font-semibold text-[#5D4037]">
+                Stat Reward: <span className="font-bold text-[#E07A5F]">+{rewardConfig.xp} {activeAttrConfig.label} EXP</span>
+              </span>
+              <span className="font-bold text-[#B78103]">+{rewardConfig.coins} Coins 🪙</span>
             </div>
 
             <div>

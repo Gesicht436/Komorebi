@@ -109,41 +109,64 @@ export const DIFFICULTY_CONFIG: Record<
   epic: { xp: 150, coins: 60, label: 'Epic', color: 'bg-purple-100 text-purple-800' },
 };
 
-export const ATTRIBUTE_CONFIG: Record<
-  QuestAttribute,
-  { label: string; description: string; icon: string; badgeColor: string; barColor: string }
-> = {
+export interface AttributeConfigItem {
+  label: string;
+  rpgStat: string;
+  statCode: string;
+  description: string;
+  categoryExamples: string[];
+  icon: string;
+  badgeColor: string;
+  barColor: string;
+}
+
+export const ATTRIBUTE_CONFIG: Record<QuestAttribute, AttributeConfigItem> = {
   focus: {
-    label: 'Focus',
-    description: 'Study, deep work, coding & intellect',
+    label: 'Intellect',
+    rpgStat: 'Intellect (INT)',
+    statCode: 'INT',
+    description: 'Coding, programming, algorithms, academic research & deep study',
+    categoryExamples: ['Coding', 'Algorithms', 'Deep Study', 'Reading'],
     icon: 'Brain',
     badgeColor: 'bg-sky-100 text-sky-800 border-sky-300',
     barColor: 'bg-sky-500',
   },
   vitality: {
-    label: 'Vitality',
-    description: 'Workouts, hydration, nutrition & sleep',
-    icon: 'Heart',
+    label: 'Strength',
+    rpgStat: 'Strength (STR)',
+    statCode: 'STR',
+    description: 'Gym workouts, weightlifting, cardio, sports, hydration & sleep',
+    categoryExamples: ['Gym', 'Weightlifting', 'Cardio', 'Hydration'],
+    icon: 'Dumbbell',
     badgeColor: 'bg-rose-100 text-rose-800 border-rose-300',
     barColor: 'bg-rose-500',
   },
   mindfulness: {
-    label: 'Mindfulness',
-    description: 'Meditation, reading, journaling & zen',
+    label: 'Wisdom',
+    rpgStat: 'Wisdom (WIS)',
+    statCode: 'WIS',
+    description: 'Meditation, journaling, breathwork, reflection & zen mindfulness',
+    categoryExamples: ['Meditation', 'Journaling', 'Breathwork', 'Zen'],
     icon: 'Sparkles',
     badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
     barColor: 'bg-teal-500',
   },
   creativity: {
     label: 'Creativity',
-    description: 'Art, design, writing & music crafting',
+    rpgStat: 'Creativity (CRT)',
+    statCode: 'CRT',
+    description: 'Digital art, UI/UX design, music composition & creative writing',
+    categoryExamples: ['UI Design', 'Digital Art', 'Music', 'Writing'],
     icon: 'Palette',
     badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
     barColor: 'bg-indigo-500',
   },
   discipline: {
-    label: 'Discipline',
-    description: 'Chores, clean workspace, daily routines',
+    label: 'Willpower',
+    rpgStat: 'Willpower (WIL)',
+    statCode: 'WIL',
+    description: 'Daily recurring habits, tidy workspace, morning routines & grit',
+    categoryExamples: ['Tidy Desk', 'Morning Routine', 'Inbox Zero', 'Chores'],
     icon: 'Shield',
     badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
     barColor: 'bg-amber-500',

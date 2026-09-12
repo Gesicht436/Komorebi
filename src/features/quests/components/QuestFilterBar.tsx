@@ -87,7 +87,7 @@ export const QuestFilterBar: React.FC<QuestFilterBarProps> = ({
               : 'bg-white border border-[#EFEBE9] text-[#5D4037] hover:bg-[#F5EFEB]'
           }`}
         >
-          All Attributes
+          All Stats
         </button>
 
         {(Object.keys(ATTRIBUTE_CONFIG) as QuestAttribute[]).map((attr) => (
@@ -97,13 +97,13 @@ export const QuestFilterBar: React.FC<QuestFilterBarProps> = ({
               soundEngine.playClick();
               setSelectedAttribute(attr);
             }}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap capitalize cursor-pointer ${
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
               selectedAttribute === attr
                 ? 'bg-[#3E2723] text-white'
                 : 'bg-white border border-[#EFEBE9] text-[#5D4037] hover:bg-[#F5EFEB]'
             }`}
           >
-            {ATTRIBUTE_CONFIG[attr].label}
+            {ATTRIBUTE_CONFIG[attr].label} ({ATTRIBUTE_CONFIG[attr].statCode})
           </button>
         ))}
       </div>

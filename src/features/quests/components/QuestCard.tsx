@@ -10,7 +10,7 @@ import {
   Minus,
   Flame,
   Brain,
-  Heart,
+  Dumbbell,
   Sparkles,
   Palette,
   Shield,
@@ -45,7 +45,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
     quest.attribute === 'focus'
       ? Brain
       : quest.attribute === 'vitality'
-      ? Heart
+      ? Dumbbell
       : quest.attribute === 'mindfulness'
       ? Sparkles
       : quest.attribute === 'creativity'
@@ -110,7 +110,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             onAnimationComplete={() => setShowFloatingReward(false)}
             className="absolute top-2 right-8 z-20 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E07A5F] text-white text-xs font-extrabold shadow-lg"
           >
-            <span>+{quest.xp_reward} XP</span>
+            <span>+{quest.xp_reward} {attrConfig.label} XP</span>
             <span>+{quest.coin_reward} 🪙</span>
           </motion.div>
         )}
@@ -163,7 +163,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${attrConfig.badgeColor}`}
             >
               <AttributeIcon className="w-3.5 h-3.5" />
-              {attrConfig.label}
+              {attrConfig.label} ({attrConfig.statCode})
             </span>
 
             <span
@@ -177,7 +177,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             </span>
 
             <span className="ml-auto text-[11px] font-bold text-[#E07A5F] flex items-center gap-1.5">
-              <span>+{quest.xp_reward} XP</span>
+              <span>+{quest.xp_reward} {attrConfig.statCode} XP</span>
               <span className="text-[#8D6E63]">•</span>
               <span>+{quest.coin_reward} 🪙</span>
             </span>
