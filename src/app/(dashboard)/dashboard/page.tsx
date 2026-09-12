@@ -18,6 +18,7 @@ import { QuestCard } from '@/components/quests/QuestCard';
 import { getTitleForLevel, getXpRequiredForLevel } from '@/lib/game/engine';
 import { getCharacterEvolution } from '@/lib/game/evolution';
 import { soundEngine } from '@/lib/audio/sound-engine';
+import { DailyProductivityScoreCard } from '@/features/dashboard';
 
 export default function StudyRoomPage() {
   const {
@@ -161,8 +162,11 @@ export default function StudyRoomPage() {
           </div>
         </div>
       </div>
+ 
+       {/* Daily Productivity Score (0-100 pts) */}
+       <DailyProductivityScoreCard profile={profile} quests={quests} />
 
-      {/* Priority Quests Section */}
+       {/* Priority Quests Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>

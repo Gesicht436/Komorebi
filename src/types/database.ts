@@ -20,6 +20,9 @@ export interface Profile {
   streak_count: number;
   streak_shields: number;
   last_active_date: string;
+  daily_score: number;
+  last_score_date?: string;
+  claimed_score_milestones?: string[];
   focus_exp: number;
   vitality_exp: number;
   mindfulness_exp: number;
@@ -43,7 +46,7 @@ export interface Quest {
   completed_at: string | null;
   due_date: string | null;
   habit_direction?: 'positive' | 'both';
-  streak_count: number;
+  streak_count?: number;
   created_at: string;
 }
 
@@ -77,7 +80,8 @@ export interface ActivityLog {
     | 'streak_updated'
     | 'streak_shield_bought'
     | 'gacha_pulled'
-    | 'streak_shield_used';
+    | 'streak_shield_used'
+    | 'daily_score_milestone';
   xp_gained: number;
   coins_change: number;
   attribute?: QuestAttribute;

@@ -48,6 +48,11 @@ create table if not exists public.profiles (
   streak_shields integer default 0 not null,
   last_active_date date default current_date,
   
+  -- Daily Productivity Score (0 to 100 points, resets daily)
+  daily_score integer default 0 not null,
+  last_score_date date default current_date,
+  claimed_score_milestones jsonb default '[]'::jsonb,
+  
   -- Life RPG Attributes (XP earned per attribute)
   focus_exp integer default 0 not null,
   vitality_exp integer default 0 not null,

@@ -31,6 +31,14 @@ import {
 import { GameContextType } from '@/features/game-state/types';
 import { STREAK_SHIELD_CONFIG } from '@/features/shop/constants/streak-shield';
 import { GACHA_PULL_COST, GachaItem, drawGachaItem } from '@/features/shop/constants/gacha-pool';
+import {
+  DAILY_SCORE_MAX,
+  DAILY_SCORE_WEIGHTS,
+  getTaskScorePoints,
+  getPomoScorePoints,
+  evaluateScoreMilestones,
+  checkDailyScoreReset,
+} from '@/lib/game/daily-score';
 
 export type { TimerMode, TimerDurations, TimerState };
 
@@ -117,6 +125,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           streak_count: 1,
           streak_shields: 0,
           last_active_date: new Date().toISOString().split('T')[0],
+          daily_score: 0,
+          last_score_date: new Date().toISOString().split('T')[0],
+          claimed_score_milestones: [],
           focus_exp: 0,
           vitality_exp: 0,
           mindfulness_exp: 0,
@@ -133,6 +144,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           profileData.streak_shields
         );
         const updates: Partial<Profile> = {};
+
+        // Check if daily productivity score should reset for a new day
+        const scoreResetCheck = checkDailyScoreReset(profileData.last_score_date);
+        if (scoreResetCheck.shouldReset) {
+          updates.daily_score = 0;
+          updates.last_score_date = scoreResetCheck.todayStr;
+          updates.claimed_score_milestones = [];
+          profileData.daily_score = 0;
+          profileData.last_score_date = scoreResetCheck.todayStr;
+          profileData.claimed_score_milestones = [];
+        }
+
         if (streakResult.newStreak !== profileData.streak_count) {
           updates.streak_count = streakResult.newStreak;
           profileData.streak_count = streakResult.newStreak;
@@ -196,29 +219,54 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile) return;
     const xpEarned = 35;
     const coinsEarned = 12;
-    const levelResult = processXpGain(profile.level, profile.current_xp, xpEarned);
+
+    // Daily Productivity Score & Milestone Evaluation
+    const pomoPoints = getPomoScorePoints(durationMinutes);
+    const newDailyScore = Math.min(DAILY_SCORE_MAX, (profile.daily_score || 0) + pomoPoints);
+    const milestoneEval = evaluateScoreMilestones(newDailyScore, profile.claimed_score_milestones || []);
+
+    const totalCoinsEarned = coinsEarned + milestoneEval.bonusCoins;
+    const totalXpEarned = xpEarned + milestoneEval.bonusXp;
+
+    const levelResult = processXpGain(profile.level, profile.current_xp, totalXpEarned);
+    const updatedClaimedMilestones = [
+      ...(profile.claimed_score_milestones || []),
+      ...milestoneEval.unlockedMilestones,
+    ];
+
+    const todayStr = new Date().toISOString().split('T')[0];
     const updatedProfile: Profile = {
       ...profile,
       level: levelResult.newLevel,
       current_xp: levelResult.newCurrentXp,
-      total_xp: profile.total_xp + xpEarned,
-      coins: profile.coins + coinsEarned,
+      total_xp: profile.total_xp + totalXpEarned,
+      coins: profile.coins + totalCoinsEarned,
       focus_exp: profile.focus_exp + xpEarned,
+      daily_score: newDailyScore,
+      last_score_date: todayStr,
+      claimed_score_milestones: updatedClaimedMilestones,
     };
     setProfile(updatedProfile);
 
-    if (levelResult.levelsGained > 0) {
-      setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+    if (levelResult.levelsGained > 0 || milestoneEval.unlockedMilestones.length > 0) {
+      soundEngine.playLevelUp();
+      if (levelResult.levelsGained > 0) {
+        setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+      }
     }
 
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
       user_id: profile.id,
       action_type: 'pomo_finished',
-      xp_gained: xpEarned,
-      coins_change: coinsEarned,
+      xp_gained: totalXpEarned,
+      coins_change: totalCoinsEarned,
       attribute: 'focus',
-      metadata: { duration_minutes: durationMinutes },
+      metadata: {
+        duration_minutes: durationMinutes,
+        daily_score_gained: pomoPoints,
+        milestones: milestoneEval.unlockedMilestones,
+      },
       created_at: new Date().toISOString(),
     };
     const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
@@ -236,15 +284,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         total_xp: updatedProfile.total_xp,
         coins: updatedProfile.coins,
         focus_exp: updatedProfile.focus_exp,
+        daily_score: newDailyScore,
+        last_score_date: todayStr,
+        claimed_score_milestones: updatedClaimedMilestones,
       }).eq('id', profile.id);
 
       await supabase.from('activity_logs').insert({
         user_id: profile.id,
         action_type: 'pomo_finished',
-        xp_gained: xpEarned,
-        coins_change: coinsEarned,
+        xp_gained: totalXpEarned,
+        coins_change: totalCoinsEarned,
         attribute: 'focus',
-        metadata: { duration_minutes: durationMinutes },
+        metadata: {
+          duration_minutes: durationMinutes,
+          daily_score_gained: pomoPoints,
+          milestones: milestoneEval.unlockedMilestones,
+        },
       });
     } catch (err) {
       console.error('Error logging pomodoro session:', err);
@@ -269,17 +324,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const quest = quests.find((q) => q.id === questId);
     if (!quest || quest.is_completed) return;
 
-    const levelResult = processXpGain(profile.level, profile.current_xp, quest.xp_reward);
+    // Daily Productivity Score & Milestone Evaluation
+    const questScorePoints = getTaskScorePoints(quest.difficulty);
+    const newDailyScore = Math.min(DAILY_SCORE_MAX, (profile.daily_score || 0) + questScorePoints);
+    const milestoneEval = evaluateScoreMilestones(newDailyScore, profile.claimed_score_milestones || []);
+
+    const totalCoinsEarned = quest.coin_reward + milestoneEval.bonusCoins;
+    const totalXpEarned = quest.xp_reward + milestoneEval.bonusXp;
+
+    const levelResult = processXpGain(profile.level, profile.current_xp, totalXpEarned);
     const attrKey = `${quest.attribute}_exp` as keyof Profile;
     const currentAttrExp = (profile[attrKey] as number) || 0;
+    const updatedClaimedMilestones = [
+      ...(profile.claimed_score_milestones || []),
+      ...milestoneEval.unlockedMilestones,
+    ];
+    const todayStr = new Date().toISOString().split('T')[0];
 
     const updatedProfile: Profile = {
       ...profile,
       level: levelResult.newLevel,
       current_xp: levelResult.newCurrentXp,
-      total_xp: profile.total_xp + quest.xp_reward,
-      coins: profile.coins + quest.coin_reward,
+      total_xp: profile.total_xp + totalXpEarned,
+      coins: profile.coins + totalCoinsEarned,
       [attrKey]: currentAttrExp + quest.xp_reward,
+      daily_score: newDailyScore,
+      last_score_date: todayStr,
+      claimed_score_milestones: updatedClaimedMilestones,
     };
 
     const updatedQuests = quests.map((q) =>
@@ -290,10 +361,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `log-${Date.now()}`,
       user_id: profile.id,
       action_type: 'quest_completed',
-      xp_gained: quest.xp_reward,
-      coins_change: quest.coin_reward,
+      xp_gained: totalXpEarned,
+      coins_change: totalCoinsEarned,
       attribute: quest.attribute,
-      metadata: { quest_title: quest.title },
+      metadata: {
+        quest_title: quest.title,
+        difficulty: quest.difficulty,
+        daily_score_gained: questScorePoints,
+        milestones: milestoneEval.unlockedMilestones,
+      },
       created_at: new Date().toISOString(),
     };
 
@@ -302,9 +378,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setQuests(updatedQuests);
     setActivityLogs(updatedLogs);
 
-    if (levelResult.levelsGained > 0) {
+    if (levelResult.levelsGained > 0 || milestoneEval.unlockedMilestones.length > 0) {
       soundEngine.playLevelUp();
-      setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+      if (levelResult.levelsGained > 0) {
+        setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+      }
     } else {
       soundEngine.playQuestComplete();
     }
@@ -322,14 +400,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         total_xp: updatedProfile.total_xp,
         coins: updatedProfile.coins,
         [attrKey]: updatedProfile[attrKey],
+        daily_score: newDailyScore,
+        last_score_date: todayStr,
+        claimed_score_milestones: updatedClaimedMilestones,
       }).eq('id', profile.id);
       await supabase.from('activity_logs').insert({
         user_id: profile.id,
         action_type: 'quest_completed',
-        xp_gained: quest.xp_reward,
-        coins_change: quest.coin_reward,
+        xp_gained: totalXpEarned,
+        coins_change: totalCoinsEarned,
         attribute: quest.attribute,
-        metadata: { quest_title: quest.title },
+        metadata: {
+          quest_title: quest.title,
+          difficulty: quest.difficulty,
+          daily_score_gained: questScorePoints,
+          milestones: milestoneEval.unlockedMilestones,
+        },
       });
     } catch (err) {
       console.error('Failed to complete quest on server:', err);
@@ -410,34 +496,100 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (delta > 0) {
       const xp = 15;
       const coins = 5;
-      const levelResult = processXpGain(profile.level, profile.current_xp, xp);
+
+      // Daily Productivity Score & Milestone Evaluation
+      const habitScorePoints = DAILY_SCORE_WEIGHTS.HABIT_TICK_POINTS;
+      const newDailyScore = Math.min(DAILY_SCORE_MAX, (profile.daily_score || 0) + habitScorePoints);
+      const milestoneEval = evaluateScoreMilestones(newDailyScore, profile.claimed_score_milestones || []);
+
+      const totalCoinsEarned = coins + milestoneEval.bonusCoins;
+      const totalXpEarned = xp + milestoneEval.bonusXp;
+
+      const levelResult = processXpGain(profile.level, profile.current_xp, totalXpEarned);
+      const updatedClaimedMilestones = [
+        ...(profile.claimed_score_milestones || []),
+        ...milestoneEval.unlockedMilestones,
+      ];
+      const todayStr = new Date().toISOString().split('T')[0];
+
       updatedProfile = {
         ...profile,
         level: levelResult.newLevel,
         current_xp: levelResult.newCurrentXp,
-        total_xp: profile.total_xp + xp,
-        coins: profile.coins + coins,
+        total_xp: profile.total_xp + totalXpEarned,
+        coins: profile.coins + totalCoinsEarned,
         discipline_exp: profile.discipline_exp + xp,
+        daily_score: newDailyScore,
+        last_score_date: todayStr,
+        claimed_score_milestones: updatedClaimedMilestones,
       };
       setProfile(updatedProfile);
-      if (levelResult.levelsGained > 0) {
-        setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+
+      if (levelResult.levelsGained > 0 || milestoneEval.unlockedMilestones.length > 0) {
+        soundEngine.playLevelUp();
+        if (levelResult.levelsGained > 0) {
+          setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
+        }
+      } else {
+        soundEngine.playQuestComplete();
       }
+
+      const newLog: ActivityLog = {
+        id: `log-${Date.now()}`,
+        user_id: profile.id,
+        action_type: 'streak_updated',
+        xp_gained: totalXpEarned,
+        coins_change: totalCoinsEarned,
+        attribute: 'discipline',
+        metadata: {
+          habit_title: quest.title,
+          daily_score_gained: habitScorePoints,
+          milestones: milestoneEval.unlockedMilestones,
+        },
+        created_at: new Date().toISOString(),
+      };
+      const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+      setActivityLogs(updatedLogs);
+
+      if (isDemoMode) {
+        savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile, activityLogs: updatedLogs });
+        return;
+      }
+
+      try {
+        await supabase.from('profiles').update({
+          level: updatedProfile.level,
+          current_xp: updatedProfile.current_xp,
+          total_xp: updatedProfile.total_xp,
+          coins: updatedProfile.coins,
+          discipline_exp: updatedProfile.discipline_exp,
+          daily_score: newDailyScore,
+          last_score_date: todayStr,
+          claimed_score_milestones: updatedClaimedMilestones,
+        }).eq('id', profile.id);
+
+        await supabase.from('activity_logs').insert({
+          user_id: profile.id,
+          action_type: 'streak_updated',
+          xp_gained: totalXpEarned,
+          coins_change: totalCoinsEarned,
+          attribute: 'discipline',
+          metadata: {
+            habit_title: quest.title,
+            daily_score_gained: habitScorePoints,
+            milestones: milestoneEval.unlockedMilestones,
+          },
+        });
+        await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
+      } catch (err) {
+        console.error('Failed to update habit on server:', err);
+      }
+      return;
     }
 
     if (isDemoMode) {
       savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile });
       return;
-    }
-
-    if (delta > 0) {
-      await supabase.from('profiles').update({
-        level: updatedProfile.level,
-        current_xp: updatedProfile.current_xp,
-        total_xp: updatedProfile.total_xp,
-        coins: updatedProfile.coins,
-        discipline_exp: updatedProfile.discipline_exp,
-      }).eq('id', profile.id);
     }
     await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
   };
