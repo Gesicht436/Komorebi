@@ -29,7 +29,7 @@ export const ActivityChronicle: React.FC<ActivityChronicleProps> = ({ activityLo
                     ({log.attribute})
                   </span>
                 )}
-                <div className="text-[10px] text-[#BCAAA4]">
+                <div className="text-[10px] text-[#BCAAA4]" suppressHydrationWarning>
                   {new Date(log.created_at).toLocaleString()}
                 </div>
               </div>

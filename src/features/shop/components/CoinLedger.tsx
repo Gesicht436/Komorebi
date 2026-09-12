@@ -228,7 +228,7 @@ export const CoinLedger: React.FC<CoinLedgerProps> = ({
                       {isPositive ? `+${log.coins_change}` : log.coins_change} 🪙
                     </span>
                   </div>
-                  <span className="text-[10px] text-[#A1887F] block mt-0.5">
+                  <span className="text-[10px] text-[#A1887F] block mt-0.5" suppressHydrationWarning>
                     {formatDate(log.created_at)}
                   </span>
                 </div>
