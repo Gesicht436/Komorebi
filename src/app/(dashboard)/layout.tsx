@@ -5,7 +5,7 @@ import { GameProvider, useGame } from '@/context/GameContext';
 import { TopNav } from '@/components/navigation/TopNav';
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { profile, isLoading, signOut } = useGame();
+  const { profile, isLoading, signOut, isDemoMode, resetDemoData } = useGame();
 
   if (isLoading) {
     return (
@@ -21,7 +21,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-[#FFFBF5] text-[#3E2723] flex flex-col">
-      <TopNav profile={profile} onSignOut={signOut} />
+      <TopNav
+        profile={profile}
+        onSignOut={signOut}
+        isDemoMode={isDemoMode}
+        onResetDemo={resetDemoData}
+      />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {children}
       </main>

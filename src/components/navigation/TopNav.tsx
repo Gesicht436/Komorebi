@@ -17,6 +17,7 @@ import {
   Timer,
   ShoppingBag,
   User,
+  RotateCcw,
   LogOut,
   Menu,
   X,
@@ -27,9 +28,16 @@ import { Profile } from '@/types/database';
 interface TopNavProps {
   profile: Profile | null;
   onSignOut: () => void;
+  isDemoMode?: boolean;
+  onResetDemo?: () => void;
 }
 
-export const TopNav: React.FC<TopNavProps> = ({ profile, onSignOut }) => {
+export const TopNav: React.FC<TopNavProps> = ({
+  profile,
+  onSignOut,
+  isDemoMode = false,
+  onResetDemo,
+}) => {
   const pathname = usePathname();
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
   const [isRainActive, setIsRainActive] = useState(soundEngine.getRainState());
@@ -136,6 +144,23 @@ export const TopNav: React.FC<TopNavProps> = ({ profile, onSignOut }) => {
               <Coins className="w-4 h-4 fill-[#FFA726]" />
               <span>{profile.coins || 0}</span>
             </div>
+          )}
+
+          {/* Reset Demo Data Button */}
+          {isDemoMode && onResetDemo && (
+            <button
+              onClick={() => {
+                if (confirm('Reset all demo data (quests, coins, inventory) back to defaults?')) {
+                  soundEngine.playLevelUp();
+                  onResetDemo();
+                }
+              }}
+              title="Reset demo data back to default"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#EDE7F6] border border-[#D1C4E9] text-[#5E35B1] hover:bg-[#D1C4E9] text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset Demo</span>
+            </button>
           )}
 
           {/* Procedural Ambient Audio Controls */}

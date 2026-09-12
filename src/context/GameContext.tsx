@@ -18,6 +18,8 @@ import {
 } from '@/lib/game/engine';
 import { LevelUpModal } from '@/components/modals/LevelUpModal';
 
+const DEMO_STORAGE_KEY = 'komorebi_demo_state';
+
 const DEMO_PROFILE: Profile = {
   id: 'demo-judge-id',
   email: 'judge@hackathon.dev',
@@ -133,6 +135,49 @@ const DEMO_LOGS: ActivityLog[] = [
   { id: 'log-5', user_id: 'demo-judge-id', action_type: 'item_purchased', xp_gained: 0, coins_change: -75, attribute: 'mindfulness', created_at: new Date(Date.now() - 4 * 86400000).toISOString() },
 ];
 
+interface PersistedState {
+  profile: Profile;
+  quests: Quest[];
+  inventory: InventoryItem[];
+  vouchers: Voucher[];
+  activityLogs: ActivityLog[];
+}
+
+const getInitialDemoState = (): PersistedState => ({
+  profile: DEMO_PROFILE,
+  quests: DEMO_QUESTS,
+  inventory: DEMO_INVENTORY,
+  vouchers: DEMO_VOUCHERS,
+  activityLogs: DEMO_LOGS,
+});
+
+const loadPersistedDemoState = (): PersistedState => {
+  if (typeof window === 'undefined') return getInitialDemoState();
+  try {
+    const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.profile && Array.isArray(parsed.quests)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error loading persisted demo state:', err);
+  }
+  return getInitialDemoState();
+};
+
+const savePersistedDemoState = (partial: Partial<PersistedState>) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = loadPersistedDemoState();
+    const updated: PersistedState = { ...current, ...partial };
+    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(updated));
+  } catch (err) {
+    console.error('Error saving persisted demo state:', err);
+  }
+};
+
 interface GameContextType {
   profile: Profile | null;
   quests: Quest[];
@@ -157,6 +202,7 @@ interface GameContextType {
   refreshData: () => Promise<void>;
   isDemoMode: boolean;
   loadDemoMode: () => void;
+  resetDemoData: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -180,16 +226,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     newLevel: 1,
   });
 
+  // Load or restore demo state from persistent storage
   const loadDemoState = useCallback(() => {
     setIsDemoMode(true);
     if (typeof document !== 'undefined') {
       document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
     }
-    setProfile(DEMO_PROFILE);
-    setQuests(DEMO_QUESTS);
-    setInventory(DEMO_INVENTORY);
-    setVouchers(DEMO_VOUCHERS);
-    setActivityLogs(DEMO_LOGS);
+    const state = loadPersistedDemoState();
+    setProfile(state.profile);
+    setQuests(state.quests);
+    setInventory(state.inventory);
+    setVouchers(state.vouchers);
+    setActivityLogs(state.activityLogs);
     setIsLoading(false);
   }, []);
 
@@ -197,6 +245,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadDemoState();
     router.push('/dashboard');
   }, [loadDemoState, router]);
+
+  const resetDemoData = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DEMO_STORAGE_KEY);
+    }
+    const fresh = getInitialDemoState();
+    setProfile(fresh.profile);
+    setQuests(fresh.quests);
+    setInventory(fresh.inventory);
+    setVouchers(fresh.vouchers);
+    setActivityLogs(fresh.activityLogs);
+    savePersistedDemoState(fresh);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (typeof document !== 'undefined' && document.cookie.includes('komorebi_demo=true')) {
@@ -300,11 +361,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const quest = quests.find((q) => q.id === questId);
     if (!quest || quest.is_completed) return;
 
-    // Snapshot for rollback
     const prevQuests = [...quests];
     const prevProfile = { ...profile };
 
-    // Process XP and Level Progression
     const levelResult = processXpGain(profile.level, profile.current_xp, quest.xp_reward);
     const streakUpdate = calculateStreakUpdate(profile.last_active_date);
 
@@ -326,33 +385,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       [attrKey]: currentAttrExp + quest.xp_reward,
     };
 
-    // Optimistic UI updates
-    setQuests((prev) =>
-      prev.map((q) =>
-        q.id === questId
-          ? { ...q, is_completed: true, completed_at: new Date().toISOString() }
-          : q
-      )
+    const updatedQuests = quests.map((q) =>
+      q.id === questId
+        ? { ...q, is_completed: true, completed_at: new Date().toISOString() }
+        : q
     );
+
+    setQuests(updatedQuests);
     setProfile(updatedProfile);
 
-    // Show level up modal if leveled up!
     if (levelResult.levelsGained > 0) {
       setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
     }
 
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user_id: profile.id,
+      action_type: 'quest_completed',
+      xp_gained: quest.xp_reward,
+      coins_change: quest.coin_reward,
+      attribute: quest.attribute,
+      metadata: { quest_title: quest.title },
+      created_at: new Date().toISOString(),
+    };
+
+    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+    setActivityLogs(updatedLogs);
+
     if (isDemoMode) {
-      const newLog: ActivityLog = {
-        id: `log-${Date.now()}`,
-        user_id: profile.id,
-        action_type: 'quest_completed',
-        xp_gained: quest.xp_reward,
-        coins_change: quest.coin_reward,
-        attribute: quest.attribute,
-        metadata: { quest_title: quest.title },
-        created_at: new Date().toISOString(),
-      };
-      setActivityLogs((prev) => [newLog, ...prev.slice(0, 19)]);
+      savePersistedDemoState({
+        profile: updatedProfile,
+        quests: updatedQuests,
+        activityLogs: updatedLogs,
+      });
       return;
     }
 
@@ -375,24 +440,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('id', profile.id);
 
-      const { data: newLog } = await supabase
-        .from('activity_logs')
-        .insert({
-          user_id: profile.id,
-          action_type: 'quest_completed',
-          xp_gained: quest.xp_reward,
-          coins_change: quest.coin_reward,
-          attribute: quest.attribute,
-          metadata: { quest_title: quest.title },
-        })
-        .select()
-        .single();
-
-      if (newLog) {
-        setActivityLogs((prev) => [newLog as ActivityLog, ...prev.slice(0, 19)]);
-      }
+      await supabase.from('activity_logs').insert({
+        user_id: profile.id,
+        action_type: 'quest_completed',
+        xp_gained: quest.xp_reward,
+        coins_change: quest.coin_reward,
+        attribute: quest.attribute,
+        metadata: { quest_title: quest.title },
+      });
     } catch (err) {
-      console.error('Failed to complete quest, rolling back:', err);
+      console.error('Failed to complete quest on server, rolling back:', err);
       setQuests(prevQuests);
       setProfile(prevProfile);
       alert('Network error: Unable to save quest completion. Please check your connection.');
@@ -404,9 +461,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile) return;
 
     if (isDemoMode) {
+      let nextQuests: Quest[];
       if (questData.id) {
-        setQuests((prev) =>
-          prev.map((q) => (q.id === questData.id ? ({ ...q, ...questData } as Quest) : q))
+        nextQuests = quests.map((q) =>
+          q.id === questData.id ? ({ ...q, ...questData } as Quest) : q
         );
       } else {
         const newDemoQuest: Quest = {
@@ -425,8 +483,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           streak_count: 0,
           created_at: new Date().toISOString(),
         };
-        setQuests((prev) => [newDemoQuest, ...prev]);
+        nextQuests = [newDemoQuest, ...quests];
       }
+      setQuests(nextQuests);
+      savePersistedDemoState({ quests: nextQuests });
       return;
     }
 
@@ -462,9 +522,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // DELETE QUEST
   const deleteQuest = async (questId: string) => {
-    setQuests((prev) => prev.filter((q) => q.id !== questId));
-    if (!isDemoMode) {
+    const updatedQuests = quests.filter((q) => q.id !== questId);
+    setQuests(updatedQuests);
+
+    if (isDemoMode) {
+      savePersistedDemoState({ quests: updatedQuests });
+      return;
+    }
+
+    try {
       await supabase.from('quests').delete().eq('id', questId);
+    } catch (err) {
+      console.error('Error deleting quest from database:', err);
     }
   };
 
@@ -475,15 +544,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!quest) return;
 
     const newStreak = Math.max(0, (quest.streak_count || 0) + delta);
-    setQuests((prev) =>
-      prev.map((q) => (q.id === questId ? { ...q, streak_count: newStreak } : q))
+    const updatedQuests = quests.map((q) =>
+      q.id === questId ? { ...q, streak_count: newStreak } : q
     );
+    setQuests(updatedQuests);
 
+    let updatedProfile = profile;
     if (delta > 0) {
       const xp = 15;
       const coins = 5;
       const levelResult = processXpGain(profile.level, profile.current_xp, xp);
-      const updatedProfile = {
+      updatedProfile = {
         ...profile,
         level: levelResult.newLevel,
         current_xp: levelResult.newCurrentXp,
@@ -496,24 +567,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (levelResult.levelsGained > 0) {
         setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
       }
-
-      if (!isDemoMode) {
-        await supabase
-          .from('profiles')
-          .update({
-            level: updatedProfile.level,
-            current_xp: updatedProfile.current_xp,
-            total_xp: updatedProfile.total_xp,
-            coins: updatedProfile.coins,
-            discipline_exp: updatedProfile.discipline_exp,
-          })
-          .eq('id', profile.id);
-      }
     }
 
-    if (!isDemoMode) {
-      await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
+    if (isDemoMode) {
+      savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile });
+      return;
     }
+
+    if (delta > 0) {
+      await supabase
+        .from('profiles')
+        .update({
+          level: updatedProfile.level,
+          current_xp: updatedProfile.current_xp,
+          total_xp: updatedProfile.total_xp,
+          coins: updatedProfile.coins,
+          discipline_exp: updatedProfile.discipline_exp,
+        })
+        .eq('id', profile.id);
+    }
+
+    await supabase.from('quests').update({ streak_count: newStreak }).eq('id', questId);
   };
 
   // COMPLETE POMODORO SESSION
@@ -539,18 +613,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLevelUpModal({ isOpen: true, newLevel: levelResult.newLevel });
     }
 
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user_id: profile.id,
+      action_type: 'pomo_finished',
+      xp_gained: xpEarned,
+      coins_change: coinsEarned,
+      attribute: 'focus',
+      metadata: { duration_minutes: durationMinutes },
+      created_at: new Date().toISOString(),
+    };
+    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+    setActivityLogs(updatedLogs);
+
     if (isDemoMode) {
-      const newLog: ActivityLog = {
-        id: `log-${Date.now()}`,
-        user_id: profile.id,
-        action_type: 'pomo_finished',
-        xp_gained: xpEarned,
-        coins_change: coinsEarned,
-        attribute: 'focus',
-        metadata: { duration_minutes: durationMinutes },
-        created_at: new Date().toISOString(),
-      };
-      setActivityLogs((prev) => [newLog, ...prev.slice(0, 19)]);
+      savePersistedDemoState({ profile: updatedProfile, activityLogs: updatedLogs });
       return;
     }
 
@@ -566,22 +643,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('id', profile.id);
 
-      const { data: newLog } = await supabase
-        .from('activity_logs')
-        .insert({
-          user_id: profile.id,
-          action_type: 'pomo_finished',
-          xp_gained: xpEarned,
-          coins_change: coinsEarned,
-          attribute: 'focus',
-          metadata: { duration_minutes: durationMinutes },
-        })
-        .select()
-        .single();
-
-      if (newLog) {
-        setActivityLogs((prev) => [newLog as ActivityLog, ...prev.slice(0, 19)]);
-      }
+      await supabase.from('activity_logs').insert({
+        user_id: profile.id,
+        action_type: 'pomo_finished',
+        xp_gained: xpEarned,
+        coins_change: coinsEarned,
+        attribute: 'focus',
+        metadata: { duration_minutes: durationMinutes },
+      });
     } catch (err) {
       console.error('Error logging pomodoro session:', err);
     }
@@ -592,7 +661,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile || profile.coins < item.cost) return;
 
     const updatedCoins = profile.coins - item.cost;
-    setProfile((prev) => (prev ? { ...prev, coins: updatedCoins } : null));
+    const updatedProfile = { ...profile, coins: updatedCoins };
+    setProfile(updatedProfile);
 
     const newInvItem: InventoryItem = {
       id: `inv-${Date.now()}`,
@@ -603,26 +673,32 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       acquired_at: new Date().toISOString(),
     };
 
-    setInventory((prev) => [...prev, newInvItem]);
-    await equipItem(item.category, item.id);
+    const updatedInv = [...inventory, newInvItem];
+    setInventory(updatedInv);
 
-    if (!isDemoMode) {
-      try {
-        await supabase.from('inventory').insert({
-          user_id: profile.id,
-          item_id: item.id,
-          item_name: item.name,
-          category: item.category,
-        });
+    const columnKey = `equipped_${item.category}` as keyof Profile;
+    const finalProfile = { ...updatedProfile, [columnKey]: item.id };
+    setProfile(finalProfile);
 
-        await supabase
-          .from('profiles')
-          .update({ coins: updatedCoins })
-          .eq('id', profile.id);
-      } catch (err) {
-        console.error('Error purchasing item:', err);
-        setProfile((prev) => (prev ? { ...prev, coins: profile.coins } : null));
-      }
+    if (isDemoMode) {
+      savePersistedDemoState({ profile: finalProfile, inventory: updatedInv });
+      return;
+    }
+
+    try {
+      await supabase.from('inventory').insert({
+        user_id: profile.id,
+        item_id: item.id,
+        item_name: item.name,
+        category: item.category,
+      });
+
+      await supabase
+        .from('profiles')
+        .update({ coins: updatedCoins, [columnKey]: item.id })
+        .eq('id', profile.id);
+    } catch (err) {
+      console.error('Error purchasing item:', err);
     }
   };
 
@@ -634,12 +710,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedProfile = { ...profile, [columnKey]: itemId };
     setProfile(updatedProfile);
 
-    if (!isDemoMode) {
-      await supabase
-        .from('profiles')
-        .update({ [columnKey]: itemId })
-        .eq('id', profile.id);
+    if (isDemoMode) {
+      savePersistedDemoState({ profile: updatedProfile });
+      return;
     }
+
+    await supabase
+      .from('profiles')
+      .update({ [columnKey]: itemId })
+      .eq('id', profile.id);
   };
 
   // CREATE VOUCHER
@@ -656,17 +735,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString(),
     };
 
-    setVouchers((prev) => [newVoucher, ...prev]);
+    const updatedVouchers = [newVoucher, ...vouchers];
+    setVouchers(updatedVouchers);
 
-    if (!isDemoMode) {
-      await supabase.from('vouchers').insert({
-        user_id: profile.id,
-        title,
-        cost,
-        icon,
-        times_redeemed: 0,
-      });
+    if (isDemoMode) {
+      savePersistedDemoState({ vouchers: updatedVouchers });
+      return;
     }
+
+    await supabase.from('vouchers').insert({
+      user_id: profile.id,
+      title,
+      cost,
+      icon,
+      times_redeemed: 0,
+    });
   };
 
   // REDEEM VOUCHER
@@ -676,50 +759,82 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updatedCoins = profile.coins - voucher.cost;
     const updatedTimes = voucher.times_redeemed + 1;
 
-    setProfile((prev) => (prev ? { ...prev, coins: updatedCoins } : null));
-    setVouchers((prev) =>
-      prev.map((v) => (v.id === voucher.id ? { ...v, times_redeemed: updatedTimes } : v))
+    const updatedProfile = { ...profile, coins: updatedCoins };
+    setProfile(updatedProfile);
+
+    const updatedVouchers = vouchers.map((v) =>
+      v.id === voucher.id ? { ...v, times_redeemed: updatedTimes } : v
     );
+    setVouchers(updatedVouchers);
 
-    if (!isDemoMode) {
-      try {
-        await supabase
-          .from('profiles')
-          .update({ coins: updatedCoins })
-          .eq('id', profile.id);
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user_id: profile.id,
+      action_type: 'voucher_redeemed',
+      coins_change: -voucher.cost,
+      xp_gained: 0,
+      metadata: { voucher_title: voucher.title },
+      created_at: new Date().toISOString(),
+    };
+    const updatedLogs = [newLog, ...activityLogs.slice(0, 19)];
+    setActivityLogs(updatedLogs);
 
-        await supabase
-          .from('vouchers')
-          .update({ times_redeemed: updatedTimes })
-          .eq('id', voucher.id);
+    if (isDemoMode) {
+      savePersistedDemoState({
+        profile: updatedProfile,
+        vouchers: updatedVouchers,
+        activityLogs: updatedLogs,
+      });
+      return;
+    }
 
-        await supabase.from('activity_logs').insert({
-          user_id: profile.id,
-          action_type: 'voucher_redeemed',
-          coins_change: -voucher.cost,
-          metadata: { voucher_title: voucher.title },
-        });
-      } catch (err) {
-        console.error('Error redeeming voucher:', err);
-      }
+    try {
+      await supabase
+        .from('profiles')
+        .update({ coins: updatedCoins })
+        .eq('id', profile.id);
+
+      await supabase
+        .from('vouchers')
+        .update({ times_redeemed: updatedTimes })
+        .eq('id', voucher.id);
+
+      await supabase.from('activity_logs').insert({
+        user_id: profile.id,
+        action_type: 'voucher_redeemed',
+        coins_change: -voucher.cost,
+        metadata: { voucher_title: voucher.title },
+      });
+    } catch (err) {
+      console.error('Error redeeming voucher:', err);
     }
   };
 
   // DELETE VOUCHER
   const deleteVoucher = async (voucherId: string) => {
-    setVouchers((prev) => prev.filter((v) => v.id !== voucherId));
-    if (!isDemoMode) {
-      await supabase.from('vouchers').delete().eq('id', voucherId);
+    const updatedVouchers = vouchers.filter((v) => v.id !== voucherId);
+    setVouchers(updatedVouchers);
+
+    if (isDemoMode) {
+      savePersistedDemoState({ vouchers: updatedVouchers });
+      return;
     }
+
+    await supabase.from('vouchers').delete().eq('id', voucherId);
   };
 
   // UPDATE DISPLAY NAME
   const updateDisplayName = async (name: string) => {
     if (!profile) return;
-    setProfile((prev) => (prev ? { ...prev, display_name: name } : null));
-    if (!isDemoMode) {
-      await supabase.from('profiles').update({ display_name: name }).eq('id', profile.id);
+    const updatedProfile = { ...profile, display_name: name };
+    setProfile(updatedProfile);
+
+    if (isDemoMode) {
+      savePersistedDemoState({ profile: updatedProfile });
+      return;
     }
+
+    await supabase.from('profiles').update({ display_name: name }).eq('id', profile.id);
   };
 
   // SIGN OUT
@@ -760,6 +875,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshData: fetchData,
         isDemoMode,
         loadDemoMode,
+        resetDemoData,
       }}
     >
       {children}
