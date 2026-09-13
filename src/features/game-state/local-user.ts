@@ -1,6 +1,6 @@
 import { Profile, Quest, InventoryItem, Voucher, ActivityLog } from '@/types/database';
 import { PersistedState, DEMO_STORAGE_KEY } from './demo-data';
-import { createDefaultBossBattle } from '@/lib/game/boss-battle';
+import { isWeeklyRaidExpired, createDefaultBossBattle } from '@/lib/game/boss-battle';
 
 export function createLocalScholarProfile(displayName: string, email: string): PersistedState {
   const trimmedName = displayName.trim() || 'Cozy Scholar';
@@ -154,6 +154,10 @@ export function loginLocalScholar(email: string): void {
     try {
       const parsed: PersistedState = JSON.parse(existingUserRaw);
       if (parsed && parsed.profile) {
+        if (!parsed.bossBattle || isWeeklyRaidExpired(parsed.bossBattle)) {
+          parsed.bossBattle = createDefaultBossBattle(parsed.profile.id);
+          localStorage.setItem(userKey, JSON.stringify(parsed));
+        }
         localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(parsed));
         document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
         return;

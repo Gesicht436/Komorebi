@@ -13,6 +13,7 @@ interface QuestModalProps {
   onClose: () => void;
   onSubmit: (questData: Partial<Quest>) => Promise<void>;
   initialQuest?: Quest | null;
+  defaultDueDate?: string | null;
 }
 
 export const QuestModal: React.FC<QuestModalProps> = ({
@@ -20,12 +21,14 @@ export const QuestModal: React.FC<QuestModalProps> = ({
   onClose,
   onSubmit,
   initialQuest,
+  defaultDueDate,
 }) => {
   const [title, setTitle] = useState(initialQuest?.title || '');
   const [description, setDescription] = useState(initialQuest?.description || '');
   const [type, setType] = useState<QuestType>(initialQuest?.type || 'daily');
   const [attribute, setAttribute] = useState<QuestAttribute>(initialQuest?.attribute || 'focus');
   const [difficulty, setDifficulty] = useState<QuestDifficulty>(initialQuest?.difficulty || 'medium');
+  const [dueDate, setDueDate] = useState<string>(initialQuest?.due_date || defaultDueDate || '');
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -64,6 +67,7 @@ export const QuestModal: React.FC<QuestModalProps> = ({
         difficulty,
         xp_reward: config.xp,
         coin_reward: config.coins,
+        due_date: dueDate.trim() ? dueDate.trim() : null,
       });
       onClose();
     } catch {
@@ -272,6 +276,33 @@ export const QuestModal: React.FC<QuestModalProps> = ({
                   );
                 })}
               </div>
+            </div>
+
+            {/* Scheduled Due Date Picker */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-[#5D4037]">
+                  Scheduled Date (Optional)
+                </label>
+                {dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => setDueDate('')}
+                    className="text-[10px] font-bold text-[#E07A5F] hover:underline cursor-pointer"
+                  >
+                    Clear Date
+                  </button>
+                )}
+              </div>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border border-[#EFEBE9] rounded-2xl text-xs text-[#3E2723] focus:outline-none focus:border-[#E07A5F] cursor-pointer"
+              />
+              <p className="text-[10px] text-[#8D6E63] mt-1">
+                Choose a specific date to schedule this quest on your calendar. Leave empty for today.
+              </p>
             </div>
 
             <div className="pt-2">

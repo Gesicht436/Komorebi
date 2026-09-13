@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { BossBattle, Profile, Quest } from '@/types/database';
-import { BOSS_PRESETS, getTaskDamage } from '@/lib/game/boss-battle';
+import { BOSS_PRESETS, getTaskDamage, getWeeklyCountdown } from '@/lib/game/boss-battle';
 import { soundEngine } from '@/lib/audio/sound-engine';
 import { AvatarDisplay } from '@/components/avatar/AvatarDisplay';
 import { getCharacterEvolution } from '@/lib/game/evolution';
@@ -61,6 +61,7 @@ export const BossBattleArena: React.FC<BossBattleArenaProps> = ({
 
   const hpPercent = Math.max(0, Math.min(100, Math.round((boss.current_hp / boss.max_hp) * 100)));
   const isDefeated = boss.is_defeated || boss.current_hp <= 0;
+  const countdown = getWeeklyCountdown(boss.target_deadline);
 
   const pendingQuests = quests.filter((q) => !q.is_completed);
 
@@ -87,9 +88,8 @@ export const BossBattleArena: React.FC<BossBattleArenaProps> = ({
       ...prev.slice(0, 4),
     ]);
 
-    // Complete quest & damage boss
+    // Complete quest (which applies direct combat damage to the boss)
     await onCompleteQuest(quest.id);
-    await onDamageBoss(dmg, quest.title);
 
     if (boss.current_hp - dmg <= 0) {
       soundEngine.playBossDefeated();
@@ -124,7 +124,11 @@ export const BossBattleArena: React.FC<BossBattleArenaProps> = ({
                 Accountability Dungeon Raid
               </h2>
               <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-                Boss Battle
+                Weekly Boss Battle
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 border border-stone-200 flex items-center gap-1">
+                <Timer className="w-2.5 h-2.5 text-stone-500" />
+                Resets: {countdown.formatted}
               </span>
             </div>
             <p className="text-xs text-[#8D6E63]">

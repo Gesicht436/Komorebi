@@ -46,6 +46,7 @@ import {
   getTaskDamage,
   getPomoDamage,
   getHabitDamage,
+  isWeeklyRaidExpired,
 } from '@/lib/game/boss-battle';
 
 export type { TimerMode, TimerDurations, TimerState };
@@ -104,18 +105,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Demo state loaders
   const loadDemoState = useCallback(() => {
     setIsDemoMode(true);
+    isDemoModeRef.current = true;
     if (typeof document !== 'undefined') {
       document.cookie = 'komorebi_demo=true; path=/; max-age=86400';
     }
     const state = loadPersistedDemoState();
     const cleanLogs = sanitizeLogs(state.activityLogs);
     setProfile(state.profile);
+    profileRef.current = state.profile;
     setQuests(state.quests);
+    questsRef.current = state.quests;
     setInventory(state.inventory);
+    inventoryRef.current = state.inventory;
     setVouchers(state.vouchers);
     setActivityLogs(cleanLogs);
     activityLogsRef.current = cleanLogs;
-    setBossBattle(state.bossBattle || DEMO_BOSS_BATTLE);
+    const activeBoss = state.bossBattle || DEMO_BOSS_BATTLE;
+    setBossBattle(activeBoss);
+    bossBattleRef.current = activeBoss;
     setIsLoading(false);
   }, []);
 
@@ -128,12 +135,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fresh = resetPersistedDemoState();
     const cleanLogs = sanitizeLogs(fresh.activityLogs);
     setProfile(fresh.profile);
+    profileRef.current = fresh.profile;
     setQuests(fresh.quests);
+    questsRef.current = fresh.quests;
     setInventory(fresh.inventory);
+    inventoryRef.current = fresh.inventory;
     setVouchers(fresh.vouchers);
     setActivityLogs(cleanLogs);
     activityLogsRef.current = cleanLogs;
-    setBossBattle(fresh.bossBattle || DEMO_BOSS_BATTLE);
+    const activeBoss = fresh.bossBattle || DEMO_BOSS_BATTLE;
+    setBossBattle(activeBoss);
+    bossBattleRef.current = activeBoss;
   }, []);
 
   // Fetch initial profile & game state
@@ -245,10 +257,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       activityLogsRef.current = cleanLogs;
 
       let currentBoss = bossRes.data?.[0] as BossBattle | undefined;
-      if (!currentBoss) {
-        const defaultBoss = createDefaultBossBattle(user.id, 'dragon');
-        const { data: createdBoss } = await supabase.from('boss_battles').insert(defaultBoss).select().single();
-        currentBoss = (createdBoss as BossBattle) || defaultBoss;
+      const isExpired = isWeeklyRaidExpired(currentBoss);
+      if (!currentBoss || isExpired) {
+        const defaultBoss = createDefaultBossBattle(user.id);
+        const { data: createdBoss, error } = await supabase
+          .from('boss_battles')
+          .insert(defaultBoss)
+          .select()
+          .single();
+        if (createdBoss && !error) {
+          currentBoss = createdBoss as BossBattle;
+        } else {
+          currentBoss = defaultBoss;
+        }
       }
       setBossBattle(currentBoss);
       bossBattleRef.current = currentBoss;
@@ -370,8 +391,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             coins: updatedProfile.coins,
           }).eq('id', currentProfile.id);
 
-          await supabase.from('inventory').insert(newLootItem);
-          await supabase.from('activity_logs').insert(defeatLog);
+          const { id: _lootId, ...dbLoot } = newLootItem;
+          await supabase.from('inventory').insert(dbLoot);
+
+          const { id: _logId, ...dbDefeatLog } = defeatLog;
+          await supabase.from('activity_logs').insert(dbDefeatLog);
         } catch (err) {
           console.error('Error recording boss defeat:', err);
         }
@@ -401,7 +425,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         try {
           await supabase.from('boss_battles').update({ current_hp: newHp }).eq('id', currentBoss.id);
-          await supabase.from('activity_logs').insert(strikeLog);
+          const { id: _strikeId, ...dbStrikeLog } = strikeLog;
+          await supabase.from('activity_logs').insert(dbStrikeLog);
         } catch (err) {
           console.error('Error updating boss HP:', err);
         }
@@ -506,7 +531,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await damageBoss(getPomoDamage(durationMinutes), 'Pomodoro Focus Session');
 
     if (isDemoMode) {
-      savePersistedDemoState({ profile: updatedProfile, activityLogs: updatedLogs });
+      savePersistedDemoState({
+        bossBattle: bossBattleRef.current || undefined,
+        profile: updatedProfile,
+        activityLogs: updatedLogs,
+      });
       return;
     }
 
@@ -628,7 +657,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await damageBoss(getTaskDamage(quest.difficulty), quest.title);
 
     if (isDemoMode) {
-      savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile, activityLogs: updatedLogs });
+      savePersistedDemoState({
+        bossBattle: bossBattleRef.current || undefined,
+        quests: updatedQuests,
+        profile: updatedProfile,
+        activityLogs: updatedLogs,
+      });
       return;
     }
 
@@ -682,7 +716,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           coin_reward: questData.coin_reward || 12,
           is_completed: false,
           completed_at: null,
-          due_date: null,
+          due_date: questData.due_date || null,
           streak_count: 0,
           created_at: new Date().toISOString(),
         };
@@ -799,7 +833,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await damageBoss(getHabitDamage(), quest.title);
 
       if (isDemoMode) {
-        savePersistedDemoState({ quests: updatedQuests, profile: updatedProfile, activityLogs: updatedLogs });
+        savePersistedDemoState({
+          bossBattle: bossBattleRef.current || undefined,
+          quests: updatedQuests,
+          profile: updatedProfile,
+          activityLogs: updatedLogs,
+        });
         return;
       }
 
@@ -1189,12 +1228,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.cookie = 'komorebi_demo=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
     setIsDemoMode(false);
+    isDemoModeRef.current = false;
     await supabase.auth.signOut();
     setProfile(null);
+    profileRef.current = null;
     setQuests([]);
+    questsRef.current = [];
     setInventory([]);
+    inventoryRef.current = [];
     setVouchers([]);
     setActivityLogs([]);
+    activityLogsRef.current = [];
+    setBossBattle(null);
+    bossBattleRef.current = null;
     router.push('/login');
     router.refresh();
   };

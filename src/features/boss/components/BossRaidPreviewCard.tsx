@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Swords, Flame, ArrowRight, ShieldAlert, Trophy } from 'lucide-react';
+import { Swords, Flame, ArrowRight, ShieldAlert, Trophy, Timer } from 'lucide-react';
 import { BossBattle } from '@/types/database';
+import { getWeeklyCountdown } from '@/lib/game/boss-battle';
 import { soundEngine } from '@/lib/audio/sound-engine';
 
 interface BossRaidPreviewCardProps {
@@ -15,6 +16,7 @@ export const BossRaidPreviewCard: React.FC<BossRaidPreviewCardProps> = ({
   boss,
   onOpenArena,
 }) => {
+  const countdown = getWeeklyCountdown(boss.target_deadline);
   const hpPercent = Math.max(0, Math.min(100, Math.round((boss.current_hp / boss.max_hp) * 100)));
   const isDefeated = boss.is_defeated || boss.current_hp <= 0;
 
@@ -30,9 +32,13 @@ export const BossRaidPreviewCard: React.FC<BossRaidPreviewCardProps> = ({
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-black uppercase tracking-wider text-red-600">
-                Active Dungeon Raid
+                Weekly Dungeon Raid
+              </span>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 border border-stone-200 flex items-center gap-1">
+                <Timer className="w-2.5 h-2.5 text-stone-500" />
+                Resets: {countdown.formatted}
               </span>
               <span
                 className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${

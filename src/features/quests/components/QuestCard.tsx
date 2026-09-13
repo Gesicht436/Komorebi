@@ -106,9 +106,9 @@ export const QuestCard: React.FC<QuestCardProps> = ({
             initial={{ opacity: 1, y: 0, scale: 0.8 }}
             animate={{ opacity: 0, y: -45, scale: 1.1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
+            transition={{ duration: 1.3, ease: 'easeOut' }}
             onAnimationComplete={() => setShowFloatingReward(false)}
-            className="absolute top-2 right-8 z-20 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E07A5F] text-white text-xs font-extrabold shadow-lg"
+            className="absolute top-2 right-8 z-20 pointer-events-none flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E07A5F] text-white text-xs font-extrabold shadow-lg flex-wrap"
           >
             <span>+{quest.xp_reward} {attrConfig.label} XP</span>
             <span>+{quest.coin_reward} 🪙</span>

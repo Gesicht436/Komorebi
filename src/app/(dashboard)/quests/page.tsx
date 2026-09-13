@@ -7,6 +7,7 @@ import { QuestBoard } from '@/components/quests/QuestBoard';
 export default function QuestsPage() {
   const {
     quests,
+    activityLogs,
     completeQuest,
     createOrUpdateQuest,
     deleteQuest,
@@ -17,6 +18,7 @@ export default function QuestsPage() {
     <div>
       <QuestBoard
         quests={quests}
+        activityLogs={activityLogs}
         onCompleteQuest={completeQuest}
         onCreateOrUpdateQuest={createOrUpdateQuest}
         onDeleteQuest={deleteQuest}

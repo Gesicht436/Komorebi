@@ -177,7 +177,7 @@ export const DEMO_LOGS: ActivityLog[] = [
 ];
 
 export const DEMO_BOSS_BATTLE: BossBattle = {
-  id: 'demo-boss-1',
+  id: '00000000-0000-4000-8000-000000000001',
   user_id: 'demo-judge-id',
   boss_name: 'Ignis, the Procrastination Wyrm',
   boss_title: 'Ancient Beast of Delay & Distraction',
@@ -189,7 +189,7 @@ export const DEMO_BOSS_BATTLE: BossBattle = {
   reward_coins: 100,
   reward_item_id: 'dragon_quill',
   reward_item_name: 'Dragon Fang Feather Quill',
-  target_deadline: 'Friday Hackathon Demo',
+  target_deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   created_at: new Date().toISOString(),
   defeated_at: null,
 };

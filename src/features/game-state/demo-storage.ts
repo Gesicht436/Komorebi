@@ -1,4 +1,5 @@
 import { PersistedState, DEMO_STORAGE_KEY, getInitialDemoState } from './demo-data';
+import { isWeeklyRaidExpired, createDefaultBossBattle } from '@/lib/game/boss-battle';
 
 export const loadPersistedDemoState = (): PersistedState => {
   if (typeof window === 'undefined') return getInitialDemoState();
@@ -7,8 +8,9 @@ export const loadPersistedDemoState = (): PersistedState => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.profile && Array.isArray(parsed.quests)) {
-        if (!parsed.bossBattle) {
-          parsed.bossBattle = { ...getInitialDemoState().bossBattle };
+        if (!parsed.bossBattle || isWeeklyRaidExpired(parsed.bossBattle)) {
+          const userId = parsed.profile?.id || 'demo-judge-id';
+          parsed.bossBattle = createDefaultBossBattle(userId);
         }
         if (Array.isArray(parsed.activityLogs)) {
           const seen = new Set<string>();
@@ -36,6 +38,12 @@ export const savePersistedDemoState = (partial: Partial<PersistedState>) => {
     const current = loadPersistedDemoState();
     const updated: PersistedState = { ...current, ...partial };
     localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(updated));
+
+    // Also persist directly to specific local scholar account if email exists
+    if (updated.profile?.email) {
+      const userKey = `komorebi_user_${updated.profile.email.trim().toLowerCase()}`;
+      localStorage.setItem(userKey, JSON.stringify(updated));
+    }
   } catch (err) {
     console.error('Error saving persisted demo state:', err);
   }

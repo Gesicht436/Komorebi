@@ -1,7 +1,8 @@
-import { Quest, QuestAttribute, QuestType } from '@/types/database';
+import { Quest, QuestAttribute, QuestType, ActivityLog } from '@/types/database';
 
 export interface QuestBoardProps {
   quests: Quest[];
+  activityLogs?: ActivityLog[];
   onCompleteQuest: (questId: string) => Promise<void>;
   onCreateOrUpdateQuest: (questData: Partial<Quest>) => Promise<void>;
   onDeleteQuest: (questId: string) => Promise<void>;

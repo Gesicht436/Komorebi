@@ -52,6 +52,8 @@ export const BOSS_PRESETS: Record<'dragon' | 'golem' | 'specter', BossConfig> = 
   },
 };
 
+export const WEEKLY_BOSS_ORDER: ('dragon' | 'golem' | 'specter')[] = ['dragon', 'golem', 'specter'];
+
 export const BOSS_DAMAGE_WEIGHTS = {
   QUEST_EPIC: 80,
   QUEST_HARD: 50,
@@ -84,10 +86,89 @@ export function getHabitDamage(): number {
   return BOSS_DAMAGE_WEIGHTS.HABIT_TICK;
 }
 
-export function createDefaultBossBattle(userId: string, type: 'dragon' | 'golem' | 'specter' = 'dragon'): BossBattle {
-  const cfg = BOSS_PRESETS[type] || BOSS_PRESETS.dragon;
+/**
+ * Calculates the next weekly reset date (Sunday 23:59:59 UTC) formatted as YYYY-MM-DD
+ */
+export function getWeeklyResetDeadline(baseDate: Date = new Date()): string {
+  const d = new Date(baseDate);
+  const day = d.getUTCDay(); // 0 is Sunday
+  const daysRemaining = (7 - day) % 7 || 7;
+  d.setUTCDate(d.getUTCDate() + daysRemaining);
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * Deterministically picks the boss type for the current calendar week
+ */
+export function getBossTypeForWeek(date: Date = new Date()): 'dragon' | 'golem' | 'specter' {
+  const weekNumber = Math.floor(date.getTime() / (7 * 24 * 60 * 60 * 1000));
+  return WEEKLY_BOSS_ORDER[weekNumber % WEEKLY_BOSS_ORDER.length];
+}
+
+/**
+ * Determines if a weekly raid boss has expired and needs refreshing
+ */
+export function isWeeklyRaidExpired(boss: BossBattle | null | undefined): boolean {
+  if (!boss) return true;
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (boss.target_deadline) {
+    return todayStr > boss.target_deadline;
+  }
+  const createdAt = new Date(boss.created_at).getTime();
+  const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+  return Date.now() - createdAt > oneWeekMs;
+}
+
+/**
+ * Returns a user-facing formatted countdown for the weekly event
+ */
+export function getWeeklyCountdown(targetDeadline?: string | null): {
+  days: number;
+  hours: number;
+  formatted: string;
+} {
+  if (!targetDeadline) {
+    return { days: 7, hours: 0, formatted: '7d left' };
+  }
+  const deadlineTime = new Date(`${targetDeadline}T23:59:59Z`).getTime();
+  const now = Date.now();
+  const diffMs = Math.max(0, deadlineTime - now);
+  const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
+  if (days === 0 && hours === 0) {
+    return { days: 0, hours: 0, formatted: 'Resetting soon' };
+  }
+  if (days === 0) {
+    return { days: 0, hours, formatted: `${hours}h left` };
+  }
+  return { days, hours, formatted: `${days}d ${hours}h left` };
+}
+
+/**
+ * Standard RFC4122 v4 UUID generator compatible with Postgres uuid columns
+ */
+export function generateUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export function createDefaultBossBattle(
+  userId: string,
+  type?: 'dragon' | 'golem' | 'specter',
+  targetDeadline?: string
+): BossBattle {
+  const chosenType = type || getBossTypeForWeek(new Date());
+  const cfg = BOSS_PRESETS[chosenType] || BOSS_PRESETS.dragon;
+  const deadline = targetDeadline || getWeeklyResetDeadline(new Date());
   return {
-    id: `boss-${Date.now()}`,
+    id: generateUuid(),
     user_id: userId,
     boss_name: cfg.name,
     boss_title: cfg.title,
@@ -99,7 +180,7 @@ export function createDefaultBossBattle(userId: string, type: 'dragon' | 'golem'
     reward_coins: cfg.reward_coins,
     reward_item_id: cfg.reward_item_id,
     reward_item_name: cfg.reward_item_name,
-    target_deadline: null,
+    target_deadline: deadline,
     created_at: new Date().toISOString(),
     defeated_at: null,
   };
